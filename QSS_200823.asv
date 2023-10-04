@@ -12,7 +12,7 @@ addpath("Data Files\")
 %% Upper Heyford
 tic;
 global sector_dist
-sector_dist = 1;
+sector_dist = 0.5;
 [ay_meas, dist, vel_ms, time, track_dist, curvature_spline, curvature] = logged_data('track_data.txt',sector_dist);
 
 %% Load Vehicle Parameters
@@ -260,8 +260,6 @@ beta_brake(locs(end)) = beta(locs(end));
 brakePressure(locs(end)) = 0;
 br_vel(locs(end)) = vel(locs(end));
 
-brakePressureOut = zeros(length(track_dist),1);
-
 for i = locs(end)-1:-1:1
 
     test_curvature = curvature_spline(i);
@@ -283,14 +281,14 @@ for i = locs(end)-1:-1:1
     Aeq = [];
     beq = [];
     lb = [min_steering, beta_min,0,0,0,0,0,0];
-    ub = [max_steering, beta_max,1,29/whl_radius,29/whl_radius,29/whl_radius,29/whl_radius,29]; % Change Upper Bound of Deceleration to Zero
+    ub = [max_steering, beta_max,100,29/whl_radius,29/whl_radius,29/whl_radius,29/whl_radius,29]; % Change Upper Bound of Deceleration to Zero
     [control_inputs, fnval, exitflag] = fmincon(@(x) max_deceleration(x,test_curvature,br_vel(i+1)),x0,[],[],Aeq,beq,lb,ub,@(x)nonlcon_deceleration(x,test_curvature,br_vel(i+1),vel(i)),options);
     braking_flag(i) = exitflag;
     br_vel(i) = -fnval;
     if br_vel(i)>vel(i)
         br_vel(i)=vel(i);
     end
-    brakePressureOut(i) = control_inputs(3).*100;
+    brakePressureOut = control_inputs()
     disp(['Braking Profile - ' ,num2str(i), '/',num2str(length(track_dist))])
 end
 
@@ -314,9 +312,6 @@ end
 
 final_ax(length(final_vel)) = (final_vel(1)^2 - final_vel(length(final_vel))^2)/(2*sector_dist);
 final_ay = curvature_spline.*final_vel.^2;
-%% Control Inputs
-brakePressureTest = brakePressureOut.*(br_vel' == final_vel)';
-throttlePositionTest = throttle_position'.*(forward_vel == final_vel)';
 
 %% Save Results for QTS
 
@@ -360,7 +355,6 @@ qss_ax_r_sqr = r_square_calc(ax_interp,(final_ax./g));
 qss_ay_r_sqr = r_square_calc(ay_interp,(final_ay./g)');
 qss_del_laptime = 1 - abs(lap_time(end) - meas_laptime)/(meas_laptime);
 qss_quality = qss_vel_r_sqr*qss_ax_r_sqr*qss_ay_r_sqr*qss_del_laptime;
-
 
 %% Measured vs QSS Velocity Comparison
 % Velocity Profile

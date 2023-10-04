@@ -7,9 +7,19 @@ global mass g h_cg wd m_f m_r t wb a b whl_radius Izz V_max ...
 global unsprung_mass h_cg_unsprung mech_balance h_cg_roll_axis rc_f rc_r...
     sprung_mass sprung_mass_front sprung_mass_rear
 
+% Brake Model
+brk_pad_mu = 0.4;
+n_piston_front = 4;
+n_piston_rear = 2;
+piston_diameter = 0.0254; %m
+piston_area = (pi*piston_diameter^2)/4; 
+brk_disc_diameter = 0.1836; %m
+brk_disc_radius = brk_disc_diameter/2;
+brk_pressure_bias = 0.5;
+
 del = control_variables(1);
 beta = control_variables(2);
-ax_brake = control_variables(3);
+brakePressure = control_variables(3).*100;
 wheel_rot_fl = control_variables(4);
 wheel_rot_fr = control_variables(5);
 wheel_rot_rl = control_variables(6);
@@ -24,6 +34,12 @@ Fd = 0.5*1.225*CDA*Vx^2;
 kt = curvature;
 yaw_rate = Vx*kt;
 ay = kt*Vx^2;
+
+% Braking Torque
+% Brake Model with brake pressure as input and brake bias
+Front_Brake_Force = 2*(brakePressure*brk_pressure_bias.*10^5.*piston_area.*n_piston_front)*brk_pad_mu*brk_disc_radius/whl_radius; %N
+Rear_Brake_Force = 2*(brakePressure*(1-brk_pressure_bias).*10^5.*piston_area.*n_piston_rear)*brk_pad_mu*brk_disc_radius/whl_radius; %N
+ax_brake = -(Front_Brake_Force + Rear_Brake_Force + Fd)/mass;
 
 % Slip Angles
 alpha_fl = ((Vx*tan(deg2rad(beta)) + a*yaw_rate) / (Vx + yaw_rate*t*0.5)) - deg2rad(del);
