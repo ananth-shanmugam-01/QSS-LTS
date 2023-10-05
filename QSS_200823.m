@@ -24,6 +24,37 @@ global mass g h_cg wd m_f m_r t wb a b whl_radius Izz V_max ...
 global brk_pad_mu n_piston_front n_piston_rear piston_diameter piston_area...
     brk_disc_radius brk_pressure_bias
 
+%% Converting Vehicle Properties to Struct 
+% Avoiding the use of global parameters
+
+carData = struct;
+constants = struct; 
+
+carData.Chassis.mass = 274;
+carData.Chassis.heightCOG = 0.280;
+carData.Chassis.weightDist = 0.45;
+carData.Chassis.massFront = carData.Chassis.mass*carData.Chassis.weightDist;
+carData.Chassis.massRear = carData.Chassis.mass*(1-carData.Chassis.weightDist);
+carData.Chassis.wheelBase = 1.535;
+carData.Chassis.yawInertia = 120; % kgm^2
+
+
+%%
+
+
+constants.g = 9.81;
+h_cg = 0.280;
+wd = 0.45; % [-]
+m_f = wd*mass; % Kg
+m_r = (1-wd)*mass; % Kg
+t = 1.23; 
+wb = 1.535;
+a = (1-wd)*wb;
+b = wd*wb;
+whl_radius = 0.196;
+Izz = 120;
+V_max = 33; % m/s
+
 mass = 274;
 g = 9.81;
 h_cg = 0.280;
