@@ -12,101 +12,62 @@ addpath("Data Files\")
 %% Upper Heyford
 tic;
 global sector_dist
-sector_dist = 1;
+sector_dist = 0.5;
 [ay_meas, dist, vel_ms, time, track_dist, curvature_spline, curvature] = logged_data('track_data.txt',sector_dist);
-
-%% Load Vehicle Parameters
-
-global mass g h_cg wd m_f m_r t wb a b whl_radius Izz V_max ...
-    gear_ratio n_motor pt_eff AMK_21Nm_Trq AMK_Motor_RPM AMK_Motor_Torque...
-    CLA CDA aero_balance
-
-global brk_pad_mu n_piston_front n_piston_rear piston_diameter piston_area...
-    brk_disc_radius brk_pressure_bias
 
 %% Converting Vehicle Properties to Struct 
 % Avoiding the use of global parameters
 
 carData = struct;
 constants = struct; 
+g = 9.81;
 
+% Chassis Properties
 carData.Chassis.mass = 274;
-carData.Chassis.heightCOG = 0.280;
+carData.Chassis.unsprungMass = 14.7;
+carData.Chassis.SprungMass = carData.Chassis.mass - 4*(carData.Chassis.unsprungMass);
+carData.Chassis.heightUnsprungCOG = 0.196;
+carData.Chassis.heightSprungCOG = 0.280;
 carData.Chassis.weightDist = 0.45;
+carData.Chassis.radWheel = 0.196; % Loaded radius
+carData.Chassis.wheelBase = 1.535;
+carData.Chassis.trackWidth = 1.23;
 carData.Chassis.massFront = carData.Chassis.mass*carData.Chassis.weightDist;
 carData.Chassis.massRear = carData.Chassis.mass*(1-carData.Chassis.weightDist);
-carData.Chassis.wheelBase = 1.535;
+carData.Chassis.sprungMassFront = carData.Chassis.SprungMass*carData.Chassis.weightDist;
+carData.Chassis.sprungMassRear = carData.Chassis.SprungMass*(1-carData.Chassis.weightDist);
+carData.Chassis.frontMomentArm = carData.Chassis.wheelBase*(1 - carData.Chassis.weightDist);
+carData.Chassis.rearMomentArm = carData.Chassis.wheelBase*(carData.Chassis.weightDist);
 carData.Chassis.yawInertia = 120; % kgm^2
 
+% Aerodynamic Properties
+carData.Aero.CLA = -0.06;
+carData.Aero.CDA = 0.6;
+carData.Aero.rAeroBalance = 0.55;
 
-%%
+% Suspension Properties
+carData.Suspension.heightCG2rollAxis = 0.230;
+carData.Suspension.rollCentreFront = 0.052;
+carData.Suspension.rollCentreRear = 0.051;
+carData.Suspension.mechanicalBalance = 0.4;
 
-
-constants.g = 9.81;
-h_cg = 0.280;
-wd = 0.45; % [-]
-m_f = wd*mass; % Kg
-m_r = (1-wd)*mass; % Kg
-t = 1.23; 
-wb = 1.535;
-a = (1-wd)*wb;
-b = wd*wb;
-whl_radius = 0.196;
-Izz = 120;
-V_max = 33; % m/s
-
-mass = 274;
-g = 9.81;
-h_cg = 0.280;
-wd = 0.45; % [-]
-m_f = wd*mass; % Kg
-m_r = (1-wd)*mass; % Kg
-t = 1.23; 
-wb = 1.535;
-a = (1-wd)*wb;
-b = wd*wb;
-whl_radius = 0.196;
-Izz = 120;
-V_max = 33; % m/s
-
-% Brake Model
-brk_pad_mu = 0.4;
-n_piston_front = 4;
-n_piston_rear = 2;
-piston_diameter = 0.0254; %m
-piston_area = (pi*piston_diameter^2)/4; 
-brk_disc_diameter = 0.1836; %m
-brk_disc_radius = brk_disc_diameter/2;
-brk_pressure_bias = 0.5;
-
-% Roll Stiffness Distribution
-global unsprung_mass h_cg_unsprung mech_balance h_cg_roll_axis rc_f rc_r...
-    sprung_mass sprung_mass_front sprung_mass_rear
-
-unsprung_mass = 14.7; % kg
-h_cg_unsprung = 0.196; % m
-mech_balance = 0.4; % Roll Stiffness Distribution
-h_cg_roll_axis = 0.230; % CG to Roll Axis
-rc_f = 0.052; % Roll Centre Height Front
-rc_r = 0.051; % Roll Centre Height Rear
-
-sprung_mass = mass - 4*unsprung_mass;
-sprung_mass_front = wd*sprung_mass;
-sprung_mass_rear = (1-wd)*sprung_mass;
-
-% Aerodynamic Model
-CLA = -0.06;
-CDA = 0.6;
-aero_balance = 0.55;
+% Brake Properties
+carData.Brakes.muBrakePad = 0.4;
+carData.Brakes.nPistonFront = 4;
+carData.Brakes.nPistonRear = 2;
+carData.Brakes.diamPiston = 0.0254;
+carData.Brakes.areaPiston = (0.25*pi*carData.Brakes.diamPiston^2);
+carData.Brakes.radBrakeDisc = 0.1836/2;
+carData.Brakes.rBrakeBias = 0.5;
 
 % Powertrain Model
-motor_data = load('AMK_21Nm.txt');
-gear_ratio = 15.55;
-n_motor = 2; % number of motors
-pt_eff = 0.5; % [-] Powertrain Overall Efficiency
-AMK_21Nm_Trq = motor_data(:,2) + (linspace(0, 1, length(motor_data(:,2)))*1E-10)'; % Creating fake unique values
-AMK_Motor_RPM = motor_data(:,1)';
-AMK_Motor_Torque = AMK_21Nm_Trq';
+[carData.Powertrain.RPM, carData.Powertrain.torqueMotor] = powerCurveInterpolation('Data Files\AMK_21Nm.txt');
+carData.Powertrain.rGear = 15.55;
+carData.Powertrain.effPU = 0.8;
+carData.Powertrain.nDrive = 2; % number of drive wheels, switch case later?
+
+% Vmax Calculations, FS style
+carData.Powertrain.vMax = (carData.Powertrain.RPM(end)/carData.Powertrain.rGear)*0.10472*carData.Chassis.radWheel; % Converted to m/s
 
 %% Generate Boundary Speed Profile
 clc;
@@ -139,10 +100,10 @@ x0 = [vel(i-1), del(i-1), beta(i-1)];
 Aeq = [];
 beq = [];
 lb = [0, min_steering, beta_min];
-ub = [V_max, max_steering, beta_max];
+ub = [carData.Powertrain.vMax, max_steering, beta_max];
 
 options = optimoptions("fmincon",'MaxFunEvals',5000,'MaxIter',5000,'Display','off','Algorithm','sqp','ConstraintTolerance',0.05); %,'EnableFeasibilityMode',true,'ConstraintTolerance',0.05,'FiniteDifferenceType','central');
-[control_inputs, ~, exitflag] = fmincon(@(x) max_cornering(x,test_curvature),x0,[],[],Aeq,beq,lb,ub,@(x)nonlcon_cornering(x,test_curvature),options);
+[control_inputs, ~, exitflag] = fmincon(@(x) max_cornering(x,test_curvature,carData),x0,[],[],Aeq,beq,lb,ub,@(x)nonlcon_cornering(x,test_curvature,carData),options);
 
 cornering_flag(i) = exitflag;
 
@@ -155,10 +116,8 @@ disp([ num2str(i), '/',num2str(length(track_dist))])
 end
 
 %% Identify Apices
-vel(vel>29) = 29; % Calculated from 22000 RPM at Motor and 15.5 Gear Ratio
+vel(vel>29) = carData.Powertrain.vMax; 
 [val, locs] = findpeaks(-vel,"MinPeakDistance",6);
-
-save('lsp.mat','vel')
 
 %% Forward Acceleration
 
@@ -198,13 +157,13 @@ for i = locs(val == max(val)):length(track_dist)-1
     beta_max = 1;
     end 
 
-    x0 = [del(i), beta(i),0,vel(i)/whl_radius,vel(i)/whl_radius,vel(i)/whl_radius,vel(i)/whl_radius];
+    x0 = [del(i), beta(i),0,vel(i)/carData.Chassis.radWheel,vel(i)/carData.Chassis.radWheel,vel(i)/carData.Chassis.radWheel,vel(i)/carData.Chassis.radWheel];
 
     Aeq = [];
     beq = [];
     lb = [min_steering, beta_min,0.01,0,0,0,0];
-    ub = [max_steering, beta_max,1,29/whl_radius,29/whl_radius,29/whl_radius,29/whl_radius];
-    [control_inputs, fnval, exitflag] = fmincon(@(x) max_acceleration(x,test_curvature,forward_vel(i)),x0,[],[],Aeq,beq,lb,ub,@(x) nonlcon_acceleration(x,test_curvature,forward_vel(i),vel(i+1)),options); 
+    ub = [max_steering, beta_max,1,carData.Powertrain.vMax/carData.Chassis.radWheel,carData.Powertrain.vMax/carData.Chassis.radWheel,carData.Powertrain.vMax/carData.Chassis.radWheel,carData.Powertrain.vMax/carData.Chassis.radWheel];
+    [control_inputs, fnval, exitflag] = fmincon(@(x) max_acceleration(x,test_curvature,forward_vel(i),carData),x0,[],[],Aeq,beq,lb,ub,@(x) nonlcon_acceleration(x,test_curvature,forward_vel(i),vel(i+1),carData),options); 
 
     accel_flag(i) = exitflag;
     
@@ -239,13 +198,13 @@ for i = 1: locs(val == max(val))
     beta_max = 1;
     end 
 
-    x0 = [del(i), beta(i),0,forward_vel(i)/whl_radius,forward_vel(i)/whl_radius,forward_vel(i)/whl_radius,forward_vel(i)/whl_radius];
+    x0 = [del(i), beta(i),0,vel(i)/carData.Chassis.radWheel,vel(i)/carData.Chassis.radWheel,vel(i)/carData.Chassis.radWheel,vel(i)/carData.Chassis.radWheel];
+
     Aeq = [];
     beq = [];
-    lb = [min_steering, beta_min,0,0,0,0,0];
-    ub = [max_steering, beta_max,1,29/whl_radius,29/whl_radius,29/whl_radius,29/whl_radius];
-    [control_inputs, fnval, exitflag] = fmincon(@(x) max_acceleration(x,test_curvature,forward_vel(i)),x0,[],[],Aeq,beq,lb,ub,@(x) nonlcon_acceleration(x,test_curvature,forward_vel(i),vel(i+1)),options); 
-
+    lb = [min_steering, beta_min,0.01,0,0,0,0];
+    ub = [max_steering, beta_max,1,carData.Powertrain.vMax/carData.Chassis.radWheel,carData.Powertrain.vMax/carData.Chassis.radWheel,carData.Powertrain.vMax/carData.Chassis.radWheel,carData.Powertrain.vMax/carData.Chassis.radWheel];
+    [control_inputs, fnval, exitflag] = fmincon(@(x) max_acceleration(x,test_curvature,forward_vel(i),carData),x0,[],[],Aeq,beq,lb,ub,@(x) nonlcon_acceleration(x,test_curvature,forward_vel(i),vel(i+1),carData),options); 
     accel_flag(i) = exitflag;
     
     if -fnval > vel(i+1)
@@ -310,12 +269,12 @@ for i = locs(end)-1:-1:1
     end 
 
     % Include new term of velocity
-    x0 = [del_brake(i+1), beta_brake(i+1),brakePressure(i+1),br_vel(i+1)/whl_radius,br_vel(i+1)/whl_radius,br_vel(i+1)/whl_radius,br_vel(i+1)/whl_radius,br_vel(i+1)];
+    x0 = [del_brake(i+1), beta_brake(i+1),brakePressure(i+1),br_vel(i+1)/carData.Chassis.radWheel,br_vel(i+1)/carData.Chassis.radWheel,br_vel(i+1)/carData.Chassis.radWheel,br_vel(i+1)/carData.Chassis.radWheel,br_vel(i+1)];
     Aeq = [];
     beq = [];
     lb = [min_steering, beta_min,0,0,0,0,0,0];
-    ub = [max_steering, beta_max,1,29/whl_radius,29/whl_radius,29/whl_radius,29/whl_radius,29]; % Change Upper Bound of Deceleration to Zero
-    [control_inputs, fnval, exitflag] = fmincon(@(x) max_deceleration(x,test_curvature,br_vel(i+1)),x0,[],[],Aeq,beq,lb,ub,@(x)nonlcon_deceleration(x,test_curvature,br_vel(i+1),vel(i)),options);
+    ub = [max_steering, beta_max,0.6,carData.Powertrain.vMax/carData.Chassis.radWheel,carData.Powertrain.vMax/carData.Chassis.radWheel,carData.Powertrain.vMax/carData.Chassis.radWheel,carData.Powertrain.vMax/carData.Chassis.radWheel, carData.Powertrain.vMax]; % Scaled Brake Pressure Sensor
+    [control_inputs, fnval, exitflag] = fmincon(@(x) max_deceleration(x,test_curvature,br_vel(i+1),carData),x0,[],[],Aeq,beq,lb,ub,@(x)nonlcon_deceleration(x,test_curvature,br_vel(i+1),vel(i),carData),options);
     braking_flag(i) = exitflag;
     br_vel(i) = -fnval;
     if br_vel(i)>vel(i)
