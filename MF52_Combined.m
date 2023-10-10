@@ -32,9 +32,9 @@ LEX     =   1;
 LXAL    =   1;
 
 LKY     =   1; % 1
-LKX     =   0.7; %  0.7
-LMUY    =   0.38; % 0.38 Changed to Fit
-LMUX    =   0.25; % 0.25 Changed to Fit
+LKX     =   1; %  0.7
+LMUY    =   .66; % 0.38 Changed to Fit
+LMUX    =   .66; % 0.25 Changed to Fit
 
 % Lateral Coefficients
 
