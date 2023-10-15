@@ -7,10 +7,10 @@ ax_tractive = Ax;
 del = control_variables(1);
 beta = control_variables(2);
 yawRate = control_variables(3);
-wheel_rot_fl = control_variables(4);
-wheel_rot_fr = control_variables(5);
-wheel_rot_rl = control_variables(6);
-wheel_rot_rr = control_variables(7);
+kappa_fl = control_variables(4);
+kappa_fr = control_variables(5);
+kappa_rl = control_variables(6);
+kappa_rr = control_variables(7);
 
 DF_total = 0.5*1.225*carData.Aero.CLA*Vx^2;
 DF_front = carData.Aero.rAeroBalance*DF_total;
@@ -25,13 +25,6 @@ alpha_fl = ((Vx*tan(deg2rad(beta)) + carData.Chassis.frontMomentArm*yawRate) / (
 alpha_fr = ((Vx*tan(deg2rad(beta)) + carData.Chassis.frontMomentArm*yawRate) / (Vx - yawRate*carData.Chassis.trackWidth*0.5)) - deg2rad(del);
 alpha_rl = (Vx*tan(deg2rad(beta)) - carData.Chassis.rearMomentArm*yawRate) / (Vx + yawRate*carData.Chassis.trackWidth*0.5);
 alpha_rr = (Vx*tan(deg2rad(beta)) - carData.Chassis.rearMomentArm*yawRate) / (Vx - yawRate*carData.Chassis.trackWidth*0.5);
-
-% Slip Ratios
-% Simplification for Pure Lateral Slip at Apex
-kappa_fl = (wheel_rot_fl*carData.Chassis.radWheel - Vx)/Vx;
-kappa_fr = (wheel_rot_fr*carData.Chassis.radWheel - Vx)/Vx;
-kappa_rl = (wheel_rot_rl*carData.Chassis.radWheel - Vx)/Vx;
-kappa_rr = (wheel_rot_rr*carData.Chassis.radWheel - Vx)/Vx;
 
 % Lateral Load Transfer
 del_w_f = (carData.Chassis.SprungMass * ay * carData.Suspension.heightCG2rollAxis * carData.Suspension.mechanicalBalance/carData.Chassis.trackWidth)...
@@ -48,15 +41,30 @@ w_fr = (carData.Chassis.massFront * g / 2) - (del_w_f) - longLT + (DF_front/2);
 w_rl = (carData.Chassis.massRear * g / 2) + (del_w_r) + longLT + (DF_rear/2);
 w_rr = (carData.Chassis.massRear * g / 2) - (del_w_r) + longLT + (DF_rear/2);
 
+
 % Wheel Forces
+
+% SR 0 Offsets
+[~, fx_fl0] = MF52_Combined(0,0,w_fl,0);
+[~, fx_fr0] = MF52_Combined(0,0,w_fr,0);
+[~, fx_rl0] = MF52_Combined(0,0,w_rl,0);
+[~, fx_rr0] = MF52_Combined(0,0,w_rr,0);
+
 [fy_fl, fx_fl] = MF52_Combined(kappa_fl,alpha_fl,w_fl,0);
+fx_fl = fx_fl - fx_fl0;
+
 [fy_fr, fx_fr] = MF52_Combined(kappa_fr,alpha_fr,w_fr,0);
+fx_fr = fx_fr - fx_fr0;
+
 [fy_rl, fx_rl] = MF52_Combined(kappa_rl,alpha_rl,w_rl,0);
+fx_rl = fx_rl - fx_rl0;
+
 [fy_rr, fx_rr] = MF52_Combined(kappa_rr,alpha_rr,w_rr,0);
+fx_rr = fx_rr - fx_rr0;
 
 % Vehicle Acceleration
 ay_out = (fy_fl + fy_fr + fy_rl + fy_rr)/carData.Chassis.mass;
-ax_out = (fx_fl + fx_fr + fx_rl + fx_rr)/carData.Chassis.mass;
+ax_out = (fx_rl + fx_rr)/carData.Chassis.mass;
 
 optAy = -ay_out; % Maximise Lateral Acceleration
 

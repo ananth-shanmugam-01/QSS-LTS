@@ -57,7 +57,7 @@ carData.Powertrain.vMax = min(carData.Powertrain.vMaxRPM,carData.Powertrain.vMax
 
 %% GGV Points
 VelPoints = 10;
-AxPoints = 5;
+AxPoints = 10;
 
 %% Velocity Range
 
@@ -123,19 +123,18 @@ end
 
 AxEnv = [velocityRange',axAcc,brAcc];
 
-% Plot Longitudinal Envelope
-% figure
-% hold on
-% plot(axAcc,velocityRange','DisplayName','Tractive Envelope','LineWidth',2)
-% plot(brAcc,velocityRange','DisplayName','Braking Envelope','LineWidth',2)
-% hold off
-% ylabel('Acceleration (m/s^2)')
-% xlabel('Velocity (m/s)')
-% box on
-% grid minor 
-% xlim padded
-% title('Longitudinal Acceleration Envelope')
-% legend Location northoutside
+figure
+hold on
+plot(axAcc,velocityRange','DisplayName','Tractive Envelope','LineWidth',2)
+plot(brAcc,velocityRange','DisplayName','Braking Envelope','LineWidth',2)
+hold off
+ylabel('Acceleration (m/s^2)')
+xlabel('Velocity (m/s)')
+box on
+grid minor 
+xlim padded
+title('Longitudinal Acceleration Envelope')
+legend Location northoutside
 
 %% Combined Slip Forward Acceleration Envelope
 GGVforwardVel = [];
@@ -218,7 +217,7 @@ for i = 1:numel(velocityRange)
 
     GGVBrakeVel = [iterVel.*ones(2*length(AxRange),1)];
     GGVBrakeAx = [flipud(BrAxRange); flipud(BrAxRange)];
-    GGVBrakeAy = [flipud(BrlatAcc); -flipud(BrlatAcc)];
+    GGVBrakeAy = [flipBrlatAcc; -flipud(BrlatAcc)];
 
     GGV(i,:,1) = [GGVforwardVel;GGVBrakeVel;] ; % Vel
     GGV(i,:,2) = [GGVforwardAx;GGVBrakeAx] ; % Ax
@@ -226,6 +225,55 @@ for i = 1:numel(velocityRange)
 
 end
 
+% %% Combined Slip Braking Envelope
+% 
+%     GGVBrakeVel = [];
+%     GGVBrakeAx = [];
+%     GGVBrakeAy = [];
+% 
+% 
+% for i = 4:numel(velocityRange)
+% 
+%     iterVel = velocityRange(i);    
+%     AxTol = 0.5; % Starting Point
+%     AxRange = linspace(AxTol,AxEnv(i,3),5)'; % 20 Calculated Points between zero and maximum forward acceleration at that point
+% 
+%     latAcc = zeros(length(AxRange),1);
+% 
+%     for j = 1:numel(AxRange)
+%     
+%         % % Input Values
+%         % Vx = velocity;
+%         % ax_tractive = Ax;
+%         % del = control_variables(1);
+%         % beta = control_variables(2);
+%         % yawRate = control_variables(3);
+%         % kappa_fl = control_variables(4);
+%         % kappa_fr = control_variables(5);
+%         % kappa_rl = control_variables(6);
+%         % kappa_rr = control_variables(7);
+%    
+%         iterAx = AxRange(j);
+%         iterInitWheelVel = iterVel/carData.Chassis.radWheel;
+%     
+%         vMaxWheel = carData.Powertrain.vMax/carData.Chassis.radWheel;
+%     
+%         x0 = [12, -1, 1, -0.05, -0.05, -0.05, -0.05];
+%         Aeq = [];
+%         beq = [];
+%         lb = [0, -2, 0, -0.1, -0.1, -0.1, -0.1];
+%         ub = [20, 0, 2, 0, 0, 0, 0];
+%         options = optimoptions("fmincon",'MaxFunEvals',5000,'MaxIter',5000);
+%         [control_inputs, fnval, exitflag] = fmincon(@(x) GGVCombinedBrakingAx(carData, x, iterVel, iterAx),x0,[],[],Aeq,beq,lb,ub,@(x) nonLinearConstraintsGGVCombinedBrakingAx(carData, x, iterVel, iterAx),options); 
+%         latAcc(j) = -fnval;
+%     
+%     end
+% 
+%     GGVBrakeVel = [GGVBrakeVel; iterVel.*ones(2*length(AxRange),1); iterVel];
+%     GGVBrakeAx = [GGVBrakeAx; AxRange; AxRange; AxRange(end)];
+%     GGVBrakeAy = [GGVBrakeAy; latAcc; -latAcc; 0];
+% 
+% end
 %%
 figure
 surf(GGV(:,:,3),GGV(:,:,2),GGV(:,:,1))
