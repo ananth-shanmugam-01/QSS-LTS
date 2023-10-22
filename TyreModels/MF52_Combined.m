@@ -6,7 +6,7 @@ function [FY,FX] = MF52_Combined(SlipRatio,SlipAngle,NormalLoad,Camber)
 
 % Inputs
 
-FZ0 = 1100;
+FZ0 = 817.4293;
 
 KAPPA = SlipRatio; % Slip Ratio [-]
 ALPHA = SlipAngle; % degrees to [Rad]
@@ -24,7 +24,7 @@ LHY     =   1;
 LVY     =   1;
 LCY     =   1;
 LEY     =   1;
-LHX     =   0.4;
+LHX     =   1;
 LVX     =   1;
 LGX     =   1;
 LCX     =   1;
@@ -33,8 +33,29 @@ LXAL    =   1;
 
 LKY     =   1; % 1
 LKX     =   1; %  0.7
-LMUY    =   0.6; % 0.38 Changed to Fit
-LMUX    =   0.6; % 0.25 Changed to Fit
+LMUY    =   1; % 0.38 Changed to Fit
+LMUX    =   1; % 0.25 Changed to Fit
+
+% Lateral Coefficients
+
+PCY1=1.1998;
+PDY1=-2.6613;
+PDY2=0.14086;
+PDY3=14.8784;
+PEY1=-0.47604;
+PEY2=1.195;
+PEY3=-1;
+PEY4=-1;
+PKY1=-42.7713;
+PKY2=1.5238;
+PKY3=0.54636;
+PHY1=-0.00051539;
+PHY2=-0.0015538;
+PHY3=-0.12405;
+PVY1=-0.0053642;
+PVY2=0.95384;
+PVY3=0.026375;
+PVY4=-0.98509;
 
 % Longitudinal Coefficients
 PCX1=1.2602;
@@ -52,33 +73,7 @@ PHX1=0.025058;
 PHX2=-0.038843;
 PVX1=-0.00045953;
 PVX2=0.0013401;
-% Combined Longitudinal Coefficients
-RBX1=7.4574;
-RBX2=-8.8044;
-RCX1=1.5974;
-REX1=0.22918;
-REX2=-0.5217;
-RHX1=0;
 
-% Lateral Coefficients
-PCY1=1.4;
-PDY1=2.4;
-PDY2=-0.4507889;
-PDY3=20;
-PEY1=0.01;
-PEY2=0.05;
-PEY3=10;
-PEY4=0;
-PKY1=-27.3678;
-PKY2=1.242483;
-PKY3=3;
-PHY1=-0.00002845241;
-PHY2=-0.0000329537;
-PHY3=0.1416031;
-PVY1=0;
-PVY2=-0.009009;
-PVY3=-0.5;
-PVY4=-1;
 % Combined Lateral Coefficients
 RBY1=26.3099;
 RBY2=20.3304;
@@ -95,6 +90,13 @@ RVY4=0;
 RVY5=0;
 RVY6=0;
 
+% Combined Longitudinal Coefficients
+RBX1=7.4574;
+RBX2=-8.8044;
+RCX1=1.5974;
+REX1=0.22918;
+REX2=-0.5217;
+RHX1=0;
 
 %% Lateral Force
 

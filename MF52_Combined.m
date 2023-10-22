@@ -6,14 +6,14 @@ function [FY,FX] = MF52_Combined(SlipRatio,SlipAngle,NormalLoad,Camber)
 
 % Inputs
 
-FZ0 = 1100;
+FZ0 = 4000;
 
 KAPPA = SlipRatio; % Slip Ratio [-]
 ALPHA = SlipAngle; % degrees to [Rad]
 FZ = abs(NormalLoad); % [N]
 GAMMA = Camber*pi/180; % degrees to [Rad]
 
-LFZO = 1.2;
+LFZO = 1;
 FZ0PR = FZ0 * LFZO; %15, NEED LFZO NOT LFZ0 TO MATCH TIRE PROP FILE
 DFZ = (FZ-FZ0PR ) ./ FZ0PR ; %14, (%30)
 
@@ -24,7 +24,7 @@ LHY     =   1;
 LVY     =   1;
 LCY     =   1;
 LEY     =   1;
-LHX     =   0.4;
+LHX     =   1;
 LVX     =   1;
 LGX     =   1;
 LCX     =   1;
@@ -33,67 +33,70 @@ LXAL    =   1;
 
 LKY     =   1; % 1
 LKX     =   1; %  0.7
-LMUY    =   0.6; % 0.38 Changed to Fit
-LMUX    =   0.6; % 0.25 Changed to Fit
+LMUY    =   1; % 0.6; 0.38 Changed to Fit
+LMUX    =   1; % 0.6; 0.25 Changed to Fit
 
 % Longitudinal Coefficients
-PCX1=1.2602;
-PDX1=2.354;
-PDX2=-0.015401;
-PDX3=-0.76992;
-PEX1=-1.0845;
-PEX2=2.3203;
-PEX3=3.2136;
-PEX4=-1.7027;
-PKX1=39.334;
-PKX2=-0.37146;
-PKX3=0.37752;
-PHX1=0.025058;
-PHX2=-0.038843;
-PVX1=-0.00045953;
-PVX2=0.0013401;
+PCX1 = 1.1 ;  % ShapefactorCXforlongitudinalforce
+PDX1 = 2.24071 ;  % LongitudinalfrictionµxatFZ0
+PDX2 = -0.35157 ;  % Variationoffrictionµxwithload
+PDX3 = 0 ;  % Variationoffrictionµxwithcamber
+PEX1 = -0.01916 ;  % LongitudinalcurvatureEXatFZ0
+PEX2 = -0.06434 ;  % VariationofcurvatureEXwithload
+PEX3 = 0.04408 ;  % VariationofcurvatureEXwithload2
+PEX4 = 0 ;  % FactorincurvatureEXwhiledriving
+PKX1 = 52.3208 ;  % LongitudinalslipstiffnessKX/FZatFZ0
+PKX2 = -26.3164 ;  % VariationofslipstiffnessKX/FZwithload
+PKX3 = 0.51374 ;  % ExponentinslipstiffnessKX/FZwithload
+PHX1 = 0.0017 ;  % HorizontalshiftSHXatFZ0
+PHX2 = -0.00011 ;  % VariationofshiftSHXwithload
+PVX1 = 0.00151 ;  % VerticalshiftSVX/FZatFZ0
+PVX2 = -0.09205 ;  % VariationofshiftSVX/FZwithload
+
 % Combined Longitudinal Coefficients
-RBX1=7.4574;
-RBX2=-8.8044;
-RCX1=1.5974;
-REX1=0.22918;
-REX2=-0.5217;
-RHX1=0;
+RBX1 = 13.4178 ;  % SlopefactorforcombinedFxreduction
+RBX2 = -12.3543 ;  % VariationofslopeFxreductionwithsr
+RCX1 = 1.00463 ;  % ShapefactorforcombinedslipFxreduction
+REX1 = -0.48105 ;  % CurvaturefactorofCombinedFx
+REX2 = 1.13752 ;  % CurvaturefactorofCombinedFxwithload
+RHX1 = -0.00696 ;  % ShiftfactorforcombinedslipFxreduction
 
 % Lateral Coefficients
-PCY1=1.4;
-PDY1=2.4;
-PDY2=-0.4507889;
-PDY3=20;
-PEY1=0.01;
-PEY2=0.05;
-PEY3=10;
-PEY4=0;
-PKY1=-27.3678;
-PKY2=1.242483;
-PKY3=3;
-PHY1=-0.00002845241;
-PHY2=-0.0000329537;
-PHY3=0.1416031;
-PVY1=0;
-PVY2=-0.009009;
-PVY3=-0.5;
-PVY4=-1;
+PCY1 = 1.7 ;  % ShapefactorCYforlateralforce
+PDY1 = -1.89243 ;  % LateralfrictionmyatFZ0
+PDY2 = -0.59433 ;  % Variationoffrictionmywithload
+PDY3 = 0 ;  % Variationoffrictionmywithcamber
+PDY4 = 1 ;  % peaklateralforceshiftwithcamber
+PEY1 = 0.31052 ;  % LongitudinalcurvatureEYatFZ0
+PEY2 = 0.57622 ;  % VariationofcurvatureEYwithload
+PEY3 = 0.24654 ;  % ZeroordercamberdependencyofcurvatureEY
+PEY4 = 1.43263 ;  % VariationofcurvatureEYwithcamber
+PKY1 = -30.5648 ;  % MaximumvalueofstiffnessKY/FZ0
+PKY2 = 0.75621 ;  % LoadatwhichKYreachesmaximumvalue
+PKY3 = 0.21874 ;  % VariationofKY/FZ0withcamber
+PHY1 = -0.0062 ;  % HorizontalshiftSHYatFZ0
+PHY2 = 0.00364 ;  % VariationofshiftSHYwithload
+PHY3 = 0.07957 ;  % VariationofshiftSHywithcamber
+PVY1 = -0.06085 ;  % VerticalshiftSVY/FZatFZ0
+PVY2 = 0.05321 ;  % VariationofshiftSVY/FZwithload
+PVY3 = 0 ;  % VariationofshiftSVY/FZwithcamber
+PVY4 = 0.54363 ;  % VariationofshiftSVY/FZwithcamberandload
+
 % Combined Lateral Coefficients
-RBY1=26.3099;
-RBY2=20.3304;
-RBY3=-0.015204;
-RCY1=0.96889;
-REY1=0.53522;
-REY2=0.69602;
-RHY1=0;
-RHY2=0;
-RVY1=0;
-RVY2=0;
-RVY3=0;
-RVY4=0;
-RVY5=0;
-RVY6=0;
+RBY1 = 16.9255 ;  % SlopefactorforcombinedFyreduction
+RBY2 = -14.3112 ;  % VariationofslopeFyreductionwithsa
+RBY3 = 0.00607 ;  % Shifttermfor'alpha'inslopeFyreduction
+RCY1 = 1.22867 ;  % ShapefactorforcombinedFyreduction
+REY1 = 0.72491 ;  % CurvaturefactorofCombinedFy
+REY2 = 0.11982 ;  % CurvaturefactorofCombinedFywithload
+RHY1 = 0.02236 ;  % ShiftfactorforcombinedFyreduction
+RHY2 = 0.02722 ;  % ShiftfactorforcombinedFyreductionwithload
+RVY1 = 0.06073 ;  % srinducedsideforceSVy'kappa'/my*FzatFz0
+RVY2 = 0.03295 ;  % VariationofSVy'kappa'/my*Fzwithload
+RVY3 = -0.63549 ;  % VariationofSVy'kappa'/my*Fzwithcamber
+RVY4 = 18.4591 ;  % VariationofSVy'kappa'/my*Fzwithsa
+RVY5 = 1.9 ;  % VariationofSVy'kappa'/my*Fzwithsr
+RVY6 = -18.8069 ;  % VariationofSVy'kappa'/my*Fzwithatansr
 
 
 %% Lateral Force
@@ -112,7 +115,6 @@ KVY0 = PHY3.*KY0 + FZ.*(PVY3 + PVY4.*DFZ); % Camber Stiffness
 KY = KY0.*(1 - PKY3.*abs(GAMMAY));
 BY = KY./(CY.*DY);
 FY0 = DY.*sin(CY.*atan(BY.*ALPHAY - EY.*(BY.*ALPHAY - atan(BY.*ALPHAY)))) + SVY;
-FY = FY0;
 
 % Combined Lateral Force
 
@@ -124,12 +126,9 @@ SHYK = RHY1 + RHY2.*DFZ; % This kills
 KS = KAPPA + SHYK;
 DVYK = MUY.*FZ.*(RVY1 + RVY2.*DFZ + RVY3.*GAMMA).*cos(atan(RVY4.*ALPHA));
 SVYK = DVYK.*sin(RVY5.*atan(RVY6.*KAPPA));
-DYK = FY0./( cos(CYK.*atan(BYK.*SHYK - EYK.*(BYK.*SHYK - atan(BYK.*SHYK)))));
 GYK = ( cos(CYK.*atan( BYK.*KS - EYK.*(BYK.*KS - atan(BYK.*KS))))) ./ ( cos(CYK.*atan(BYK.*SHYK - EYK.*(BYK.*SHYK - atan(BYK.*SHYK)))));
 
-FY_C = GYK.*FY + SVYK;
-
-% FY = (DYK.*cos(CYK.*atan( BYK.*KS - EYK.*(BYK.*KS - atan(BYK.*KS))))) + SVYK;
+FY_C = GYK.*FY0 + SVYK;
 
 FY = FY_C;
 

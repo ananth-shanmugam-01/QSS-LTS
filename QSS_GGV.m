@@ -1,5 +1,6 @@
 clear; clc; close all;
 addpath("GGV Calculations\")
+addpath("TyreModels\")
 
 %% GGV Calculations
 
@@ -24,10 +25,18 @@ carData.Chassis.sprungMassFront = carData.Chassis.SprungMass*carData.Chassis.wei
 carData.Chassis.sprungMassRear = carData.Chassis.SprungMass*(1-carData.Chassis.weightDist);
 carData.Chassis.frontMomentArm = carData.Chassis.wheelBase*(1 - carData.Chassis.weightDist);
 carData.Chassis.rearMomentArm = carData.Chassis.wheelBase*(carData.Chassis.weightDist);
-carData.Chassis.yawInertia = 120; % kgm^2
+carData.Chassis.yawInertia = 340; % kgm^2
+
+% Tyre Properties
+carData.Tyre.muLoadSensitivity = -2.5e-4;
+carData.Tyre.refMUY = 2.4;
+carData.Tyre.refMUX = 2.2;
+carData.Tyre.refFZ = 800;
+carData.Tyre.LambdaMUY = 1;
+carData.Tyre.LambdaMUX = 1;
 
 % Aerodynamic Properties
-carData.Aero.CLA = 0;
+carData.Aero.CLA = 3.8;
 carData.Aero.CDA = 1.2;
 carData.Aero.rAeroBalance = 0.5;
 
@@ -58,64 +67,42 @@ carData.Powertrain.vMax = min(carData.Powertrain.vMaxRPM,carData.Powertrain.vMax
 %% GGV Points
 VelPoints = 10;
 AxPoints = 5;
+options = optimoptions("fmincon",'MaxFunEvals',5000,'MaxIter',5000,'Display','off'); % FMINCON options
 
 %% Velocity Range
 
-velocityRange = linspace(10,carData.Powertrain.vMax-1, VelPoints);
+velocityRange = linspace(10,carData.Powertrain.vMax, VelPoints);
 
-%% Forward Acceleration
+tic
+
+%% Longitudinal Acceleration (Tractive and Braking)
 axAcc = zeros(length(velocityRange),1);
+brAcc = zeros(length(velocityRange),1);
+
 for i = 1:numel(velocityRange)
 
     % Vx = velocity;
-    % throttle_position = control_variables(1);
-    % wheel_rot_fl = control_variables(2);
-    % wheel_rot_fr = control_variables(3);
-    % wheel_rot_rl = control_variables(4);
-    % wheel_rot_rr = control_variables(5);
-    
+    % Ax = control_variables(1)
+   
     iterVel = velocityRange(i);
-    iterInitWheelVel = iterVel/carData.Chassis.radWheel;
 
-    vMaxWheel = carData.Powertrain.vMax/carData.Chassis.radWheel;
-
-    x0 = [0.8, iterInitWheelVel, iterInitWheelVel, iterInitWheelVel, iterInitWheelVel];
-    
+    x0 = [4];    
     Aeq = [];
     beq = [];
-    lb = [0, iterInitWheelVel, iterInitWheelVel, iterInitWheelVel, iterInitWheelVel];
-    ub = [1, vMaxWheel, vMaxWheel, vMaxWheel, vMaxWheel];
-    [control_inputs, fnval, exitflag] = fmincon(@(x) GGVforwardAcc(carData, x, iterVel),x0,[],[],Aeq,beq,lb,ub,@(x) nonLinearConstraintsGGVforwardAcc(carData,x,iterVel)); 
+    lb = [0];
+    ub = [2*9.81]; % Random Upper Limit, 
+    [control_inputs, fnval, exitflag] = fmincon(@(x) GGVforwardAcc(carData, x, iterVel),x0,[],[],Aeq,beq,lb,ub,@(x) nonLinearConstraintsGGVforwardAcc(carData,x,iterVel),options); 
     axAcc(i) = -fnval;
     
-end
-
-%% Deceleration
-
-brAcc = zeros(length(velocityRange),1);
-for i = 1:numel(velocityRange)
-
-    % Control Variables
-    % Vx = velocity;
-    % brakePressure = control_variables(1);
-    % wheel_rot_fl = control_variables(2);
-    % wheel_rot_fr = control_variables(3);
-    % wheel_rot_rl = control_variables(4);
-    % wheel_rot_rr = control_variables(5);
-
-    iterVel = velocityRange(i);
-    iterInitWheelVel = iterVel/carData.Chassis.radWheel;
-
-    vMaxWheel = carData.Powertrain.vMax/carData.Chassis.radWheel;
-
-    x0 = [0.3, iterInitWheelVel, iterInitWheelVel, iterInitWheelVel, iterInitWheelVel];
+    x0 = [0.3];
 
     Aeq = [];
     beq = [];
-    lb = [0, 0, 0, 0, 0];
-    ub = [1, vMaxWheel, vMaxWheel, vMaxWheel, vMaxWheel];
-    [control_inputs, fnval, exitflag] = fmincon(@(x) GGVDeceleration(carData, x, iterVel),x0,[],[],Aeq,beq,lb,ub,@(x) nonLinearConstraintsGGVDeceleration(carData,x,iterVel)); 
+    lb = [0];
+    ub = [0.6]; % Max Pressure in Bar/100
+    [control_inputs, fnval, exitflag] = fmincon(@(x) GGVDeceleration(carData, x, iterVel),x0,[],[],Aeq,beq,lb,ub,@(x) nonLinearConstraintsGGVDeceleration(carData,x,iterVel),options); 
     brAcc(i) = fnval;
+
 
 end
 
@@ -124,20 +111,22 @@ end
 AxEnv = [velocityRange',axAcc,brAcc];
 
 % Plot Longitudinal Envelope
-% figure
-% hold on
-% plot(axAcc,velocityRange','DisplayName','Tractive Envelope','LineWidth',2)
-% plot(brAcc,velocityRange','DisplayName','Braking Envelope','LineWidth',2)
-% hold off
-% ylabel('Acceleration (m/s^2)')
-% xlabel('Velocity (m/s)')
-% box on
-% grid minor 
-% xlim padded
-% title('Longitudinal Acceleration Envelope')
-% legend Location northoutside
+figure
+hold on
+plot(axAcc,velocityRange','DisplayName','Tractive Envelope','LineWidth',2)
+plot(brAcc,velocityRange','DisplayName','Braking Envelope','LineWidth',2)
+hold off
+ylabel('Acceleration (m/s^2)')
+xlabel('Velocity (m/s)')
+box on
+grid minor 
+xlim padded
+title('Longitudinal Acceleration Envelope')
+legend Location northoutside
 
 %% Combined Slip Forward Acceleration Envelope
+clc;
+
 GGVforwardVel = [];
 GGVforwardAx = [];
 GGVforwardAy = [];
@@ -146,16 +135,13 @@ GGVBrakeVel = [];
 GGVBrakeAx = [];
 GGVBrakeAy = [];
 
-% Optimiser Control Inputs -----------------
+% Function Inputs -----------------
 % Vx = velocity;
 % ax_tractive = Ax;
-% del = control_variables(1);
-% beta = control_variables(2);
-% yawRate = control_variables(3);
-% kappa_fl = control_variables(4);
-% kappa_fr = control_variables(5);
-% kappa_rl = control_variables(6);
-% kappa_rr = control_variables(7);
+% Optimiser Inputs ----------------
+% MUX for each tyre
+% Saturation Scalar
+% AY guess
 % ------------------------------------------
 
 for i = 1:numel(velocityRange)
@@ -164,7 +150,7 @@ for i = 1:numel(velocityRange)
 
     % Forward Acceleration ------------------------
 
-    AxTol = 0.5; % Starting Point
+    AxTol = 0; % Starting Point
     AxRange = linspace(AxTol,AxEnv(i,2),AxPoints)'; % 20 Calculated Points between zero and maximum forward acceleration at that point
 
     FrlatAcc = zeros(length(AxRange),1);
@@ -176,12 +162,11 @@ for i = 1:numel(velocityRange)
     
         vMaxWheel = carData.Powertrain.vMax/carData.Chassis.radWheel;
     
-        x0 = [12, -1, 1, 0, 0, 0.01, 0.01];
+        x0 = [1, 1, 0.5, 0.5, 0.5, 9.81];
         Aeq = [];
         beq = [];
-        lb = [0, -2, 0, 0, 0, 0, 0];
-        ub = [20, 0, 2, 0, 0, 0.1, 0.1];
-        options = optimoptions("fmincon",'MaxFunEvals',5000,'MaxIter',5000);
+        lb = [0, 0, 0, 0, 0, 0];
+        ub = [3, 3, 1, 1, 1, 3*9.81]; % High 
         [control_inputs, fnval, exitflag] = fmincon(@(x) GGVCombinedPositiveAx(carData, x, iterVel, iterAx),x0,[],[],Aeq,beq,lb,ub,@(x) nonLinearConstraintsGGVCombinedPositiveAx(carData, x, iterVel, iterAx),options); 
         FrlatAcc(j) = -fnval;
     
@@ -191,34 +176,42 @@ for i = 1:numel(velocityRange)
     GGVforwardAx = [AxRange; flipud(AxRange)];
     GGVforwardAy = [FrlatAcc; -flipud(FrlatAcc)];
 
-    % Braking Acceleration ------------------------
+    % Braking ------------------------
+    % brakePressure = control_variables(1)./100;
+    % FLmux = control_variables(2); % No tractive force at front axle
+    % FRmux = control_variables(3);
+    % RLmux = control_variables(4);
+    % RRmux = control_variables(5);   
+    % FrontFYScalar = control_variables(6);
+    % RearFYScalar = control_variables(7);   
+    % FXScalar = control_variables(8); 
+    % ay = control_variables(9);
 
-    AxTol = -0.5; % Starting Point
-    BrAxRange = linspace(AxTol,AxEnv(i,3),AxPoints)'; % 20 Calculated Points between zero and maximum deceleration at that point
+    AxTol = 0; % Starting Point
+    BrAxRange = linspace(AxTol,AxEnv(i,3),AxPoints)'; % 20 Calculated Points between zero and maximum forward acceleration at that point
 
     BrlatAcc = zeros(length(BrAxRange),1);
 
     for j = 1:numel(BrAxRange)
-   
+     
         iterAx = BrAxRange(j);
         iterInitWheelVel = iterVel/carData.Chassis.radWheel;
     
         vMaxWheel = carData.Powertrain.vMax/carData.Chassis.radWheel;
     
-        x0 = [12, -1, 1, -0.05, -0.05, -0.05, -0.05];
+        x0 = [0.3, 1, 1, 1, 1, 0.5, 0.5, 9.81];
         Aeq = [];
         beq = [];
-        lb = [0, -2, 0, -0.1, -0.1, -0.1, -0.1];
-        ub = [20, 0, 2, 0, 0, 0, 0];
-        options = optimoptions("fmincon",'MaxFunEvals',5000,'MaxIter',5000);
+        lb = [0, 0, 0, 0, 0, 0, 0, 0];
+        ub = [0.6, 3, 3, 3, 3, 1, 1, 3*9.81]; % High 
         [control_inputs, fnval, exitflag] = fmincon(@(x) GGVCombinedBrakingAx(carData, x, iterVel, iterAx),x0,[],[],Aeq,beq,lb,ub,@(x) nonLinearConstraintsGGVCombinedBrakingAx(carData, x, iterVel, iterAx),options); 
         BrlatAcc(j) = -fnval;
     
     end
 
     GGVBrakeVel = [iterVel.*ones(2*length(AxRange),1)];
-    GGVBrakeAx = [flipud(BrAxRange); flipud(BrAxRange)];
-    GGVBrakeAy = [flipud(BrlatAcc); -flipud(BrlatAcc)];
+    GGVBrakeAx = [(BrAxRange); flip(BrAxRange,1)];
+    GGVBrakeAy = [(BrlatAcc); -flip(BrlatAcc,1)];
 
     GGV(i,:,1) = [GGVforwardVel;GGVBrakeVel;] ; % Vel
     GGV(i,:,2) = [GGVforwardAx;GGVBrakeAx] ; % Ax
@@ -226,6 +219,7 @@ for i = 1:numel(velocityRange)
 
 end
 
+toc
 %%
 figure
 surf(GGV(:,:,3),GGV(:,:,2),GGV(:,:,1))
