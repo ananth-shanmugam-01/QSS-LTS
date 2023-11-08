@@ -20,7 +20,7 @@ DF_total = 0.5*1.225*carData.Aero.CLA*Vx^2;
 DF_front = carData.Aero.rAeroBalance*DF_total;
 DF_rear = (1-carData.Aero.rAeroBalance)*DF_front;
 
-% Fd = 0.5*1.225*carData.Aero.CDA*Vx^2; % Drag influence not used in load transfer
+Fd = 0.5*1.225*carData.Aero.CDA*Vx^2; % Drag influence not used in load transfer
 
 g = 9.81;
 
@@ -48,7 +48,7 @@ w_rr = (carData.Chassis.massRear * g / 2) - (del_w_r) + longLT + (DF_rear/2);
 
 % Lateral Saturation Scalars
 FYAxleFront = FrontFYScalar*(fyFL + fyFR);
-FYAxleRear = RearFYScalar*(fyRL + fyRR);
+FYAxleRear = RearFYScalar*(fyRL + fyRR); % RearFYScalar
 
 % Longitudinal Saturation Scalars
 ScaledFX = FXScalar*(fxRL + fxRR);

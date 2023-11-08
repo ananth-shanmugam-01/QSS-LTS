@@ -9,7 +9,7 @@ carData = struct;
 constants = struct; 
 g = 9.81;
 
-% Chassis Properties
+% Chassis PropertiesRearFYScalar*
 carData.Chassis.mass = 274;
 carData.Chassis.unsprungMass = 14.7;
 carData.Chassis.SprungMass = carData.Chassis.mass - 4*(carData.Chassis.unsprungMass);
@@ -25,7 +25,7 @@ carData.Chassis.sprungMassFront = carData.Chassis.SprungMass*carData.Chassis.wei
 carData.Chassis.sprungMassRear = carData.Chassis.SprungMass*(1-carData.Chassis.weightDist);
 carData.Chassis.frontMomentArm = carData.Chassis.wheelBase*(1 - carData.Chassis.weightDist);
 carData.Chassis.rearMomentArm = carData.Chassis.wheelBase*(carData.Chassis.weightDist);
-carData.Chassis.yawInertia = 340; % kgm^2
+carData.Chassis.yawInertia = 120; % kgm^2
 
 % Tyre Properties
 carData.Tyre.muLoadSensitivity = -2.5e-4;
@@ -58,7 +58,7 @@ carData.Brakes.rBrakeBias = 0.5;
 % Powertrain Model
 [carData.Powertrain.RPM, carData.Powertrain.torqueMotor] = powerCurveInterpolation('Data Files\AMK_21Nm.txt');
 carData.Powertrain.rGear = 15.55;
-carData.Powertrain.effPU = 0.8;
+carData.Powertrain.effPU = 0.4;
 carData.Powertrain.nDrive = 2; % number of drive wheels, switch case later?
 carData.Powertrain.vMaxRPM = (carData.Powertrain.RPM(end)/carData.Powertrain.rGear)*0.10472*carData.Chassis.radWheel; % Calculate RPM based top speed limit
 carData.Powertrain.vMaxDrag = calcDragLimitVel(carData); % Calculate Drag Based top speed limit
@@ -66,7 +66,7 @@ carData.Powertrain.vMax = min(carData.Powertrain.vMaxRPM,carData.Powertrain.vMax
 
 %% GGV Points
 VelPoints = 10;
-AxPoints = 5;
+AxPoints = 20;
 options = optimoptions("fmincon",'MaxFunEvals',5000,'MaxIter',5000,'Display','off'); % FMINCON options
 
 %% Velocity Range
@@ -135,6 +135,14 @@ GGVBrakeVel = [];
 GGVBrakeAx = [];
 GGVBrakeAy = [];
 
+GGVAccVel = [];
+GGVAccAy = [];
+GGVAccAx = [];
+
+GGVBrVel = [];
+GGVBrAy = [];
+GGVBrAx = [];
+
 % Function Inputs -----------------
 % Vx = velocity;
 % ax_tractive = Ax;
@@ -176,6 +184,10 @@ for i = 1:numel(velocityRange)
     GGVforwardAx = [AxRange; flipud(AxRange)];
     GGVforwardAy = [FrlatAcc; -flipud(FrlatAcc)];
 
+    GGVAccVel = [GGVAccVel;GGVforwardVel;iterVel];
+    GGVAccAy = [GGVAccAy;GGVforwardAy;0];
+    GGVAccAx = [GGVAccAx;GGVforwardAx;AxRange(end)];
+
     % Braking ------------------------
     % brakePressure = control_variables(1)./100;
     % FLmux = control_variables(2); % No tractive force at front axle
@@ -213,6 +225,10 @@ for i = 1:numel(velocityRange)
     GGVBrakeAx = [(BrAxRange); flip(BrAxRange,1)];
     GGVBrakeAy = [(BrlatAcc); -flip(BrlatAcc,1)];
 
+    GGVBrVel = [GGVBrVel;GGVBrakeVel;iterVel];
+    GGVBrAy = [GGVBrAy;GGVBrakeAy;0];
+    GGVBrAx = [GGVBrAx;GGVBrakeAx;BrAxRange(end)];
+
     GGV(i,:,1) = [GGVforwardVel;GGVBrakeVel;] ; % Vel
     GGV(i,:,2) = [GGVforwardAx;GGVBrakeAx] ; % Ax
     GGV(i,:,3) = [GGVforwardAy;GGVBrakeAy] ; % Ay
@@ -222,12 +238,21 @@ end
 toc
 %%
 figure
-surf(GGV(:,:,3),GGV(:,:,2),GGV(:,:,1))
+surf(GGV(:,:,3),GGV(:,:,2),GGV(:,:,1)) % Ay, Ax, Vel
 xlabel('Ay')
 ylabel('Ax')
 zlabel('V')
 
+%% Split up for tests
 
+GGVAcc = [GGVAccVel, GGVAccAy, GGVAccAx];
+GGVBrake = [GGVBrVel, GGVBrAy, GGVBrAx];
+
+save('GGVsurf.mat','GGV')
+
+save('GGVForward.mat','GGVAcc')
+
+save('GGVBrake.mat','GGVBrake')
 
 
 
