@@ -6,110 +6,103 @@ function [FY,FX] = MF52_Combined(SlipRatio,SlipAngle,NormalLoad,Camber)
 
 % Inputs
 
-FZ0 = 817.4293;
+FZ0 = 8.000e+002;
 
 KAPPA = SlipRatio; % Slip Ratio [-]
-ALPHA = SlipAngle; % degrees to [Rad]
+ALPHA = SlipAngle; % [Rad]
 FZ = abs(NormalLoad); % [N]
-GAMMA = Camber*pi/180; % degrees to [Rad]
+GAMMA = Camber; % [Rad]
 
-LFZO = 1.2;
+LFZO = 1;
 FZ0PR = FZ0 * LFZO; %15, NEED LFZO NOT LFZ0 TO MATCH TIRE PROP FILE
 DFZ = (FZ-FZ0PR ) ./ FZ0PR ; %14, (%30)
 
 % Scaling Factors
 
-LGAY    =   1;
+LGAY    = 1.1;
 LHY     =   1;
 LVY     =   1;
 LCY     =   1;
 LEY     =   1;
+LMUY    =   0.5; % Changed to Fit
 LHX     =   1;
 LVX     =   1;
+LMUX    =   0.3;
 LGX     =   1;
 LCX     =   1;
 LEX     =   1;
+LKX     =   1;
 LXAL    =   1;
 
-LKY     =   1; % 1
-LKX     =   0.7; %  0.7
-LMUY    =   0.38; % 0.38 Changed to Fit
-LMUX    =   0.25; % 0.25 Changed to Fit
+% Pure Lateral Coefficients
+PCY1                      = +1.757e+000;%    $typarr( 91)
+PDY1                      = +2.574e+000;%    $typarr( 92)
+PDY2                      = -5.027e-001;%    $typarr( 93)
+PDY3                      = -5.992e-001;%    $typarr( 94)
+PEY1                      = -5.379e-001;%    $typarr( 95)
+PEY2                      = -1.113e+000;%    $typarr( 96)
+PEY3                      = +3.180e-001;%    $typarr( 97)
+PEY4                      = -5.013e+000;%    $typarr( 98)
+PKY1                      = -5.785e+001;%    $typarr( 99)
+PKY2                      = +1.785e+000 ;%   $typarr(100)
+PKY3                      = +5.450e-001;%    $typarr(101)
+PHY1                      = +0.000e+000;%    $typarr(102)
+PHY2                      = +0.000e+000;%    $typarr(103)
+PHY3                      = -3.408e-004;%    $typarr(104)
+PVY1                      = +0.000e+000;%    $typarr(105)
+PVY2                      = +0.000e+000;%    $typarr(106)
+PVY3                      = -2.652e+000;%    $typarr(107)
+PVY4                      = -7.016e-001;%    $typarr(108)
+RBY1                      = +2.833e+001;%    $typarr(109)
+RBY2                      = +1.190e+001;%    $typarr(110)
+RBY3                      = -1.243e-002;%    $typarr(111)
+RCY1                      = +9.317e-001;%    $typarr(112)
+REY1                      = -3.982e-004;%    $typarr(113)
+REY2                      = +3.077e-001;%    $typarr(114)
+RHY1                      = +0.000e+000;%    $typarr(115)
+RHY2                      = +0.000e+000;%    $typarr(116)
+RVY1                      = +0.000e+000;%    $typarr(117)
+RVY2                      = +0.000e+000;%    $typarr(118)
+RVY3                      = +0.000e+000;%    $typarr(119)
+RVY4                      = +0.000e+000;%    $typarr(120)
+RVY5                      = +0.000e+000;%    $typarr(121)
+RVY6                      = +0.000e+000 ;%   $typarr(122)
+% Pure Longitudinal Coefficients
+PCX1                      = +1.616e+000 ;  
+PDX1                      = +2.749e+000 ;  
+PDX2                      = -2.010e-001 ;  
+PDX3                      = +1.223e+001 ; %  $typarr( 60)
+PEX1                      = +7.202e-001 ; %    $typarr( 64)
+PEX2                      = -9.124e-002 ; %    $typarr( 65)
+PEX3                      = +2.430e-002; %     $typarr( 66)
+PEX4                      = -7.010e-002; %     $typarr( 67)
+PKX1                      = +7.530e+001; %     $typarr( 68)
+PKX2                      = -2.025e+001; %     $typarr( 69)
+PKX3                      = +4.110e-001; %     $typarr( 70)
+PHX1                      = +0.000e+000; %     $typarr( 71)
+PHX2                      = +0.000e+000; %     $typarr( 72)
+PVX1                      = +0.000e+000; %     $typarr( 73)
+PVX2                      = +0.000e+000; %     $typarr( 74)
+RBX1                      = +1.391e+001; %     $typarr( 75)
+RBX2                      = +1.485e+001; %     
+RCX1                      = +7.595e-001; %     
+REX1                      = -7.759e-001  ; % 
+REX2                      = +5.009e-001    ; % 
+RHX1                      = +0.000e+000    ; % 
 
-% Lateral Coefficients
+%% Lateral Code
 
-PCY1=1.1998;
-PDY1=-2.6613;
-PDY2=0.14086;
-PDY3=14.8784;
-PEY1=-0.47604;
-PEY2=1.195;
-PEY3=-1;
-PEY4=-1;
-PKY1=-42.7713;
-PKY2=1.5238;
-PKY3=0.54636;
-PHY1=-0.00051539;
-PHY2=-0.0015538;
-PHY3=-0.12405;
-PVY1=-0.0053642;
-PVY2=0.95384;
-PVY3=0.026375;
-PVY4=-0.98509;
-
-% Longitudinal Coefficients
-PCX1=1.2602;
-PDX1=2.354;
-PDX2=-0.015401;
-PDX3=-0.76992;
-PEX1=-1.0845;
-PEX2=2.3203;
-PEX3=3.2136;
-PEX4=-1.7027;
-PKX1=39.334;
-PKX2=-0.37146;
-PKX3=0.37752;
-PHX1=0.025058;
-PHX2=-0.038843;
-PVX1=-0.00045953;
-PVX2=0.0013401;
-
-% Combined Lateral Coefficients
-RBY1=26.3099;
-RBY2=20.3304;
-RBY3=-0.015204;
-RCY1=0.96889;
-REY1=0.53522;
-REY2=0.69602;
-RHY1=0;
-RHY2=0;
-RVY1=0;
-RVY2=0;
-RVY3=0;
-RVY4=0;
-RVY5=0;
-RVY6=0;
-
-% Combined Longitudinal Coefficients
-RBX1=7.4574;
-RBX2=-8.8044;
-RCX1=1.5974;
-REX1=0.22918;
-REX2=-0.5217;
-RHX1=0;
-
-%% Lateral Force
-
+% Pure Lateral Force
 GAMMAY = GAMMA.*LGAY;
 SHY = (PHY1+ PHY2.*DFZ).*LHY + PHY3.*GAMMAY;
-SVY = FZ.*((PVY1 + PVY2.*DFZ).*LVY + (PVY3 + PVY4.*DFZ)).*LMUY;
+SVY = 0; %FZ.*((PVY1 + PVY2.*DFZ).*LVY + (PVY3 + PVY4.*DFZ)).*LMUY;
 ALPHAY = ALPHA + SHY;
 CY = PCY1.*LCY;
 MUY = (PDY1 + PDY2.*DFZ).*(1 - PDY3.*(GAMMAY.^2)).*LMUY;
 DY = MUY.*FZ;
 EY = (PEY1 + PEY2.*DFZ).*(1 - (PEY3 + PEY4.*GAMMAY).*sign(ALPHAY)).*LEY;
 
-KY0 = PKY1.*FZ0.*sin( 2.*atan(FZ./(PKY2.*FZ0PR))).*LKY; % Cornering Stiffness
+KY0 = PKY1.*FZ0.*sin( 2.*atan(FZ./(PKY2.*FZ0PR))); % Cornering Stiffness
 KVY0 = PHY3.*KY0 + FZ.*(PVY3 + PVY4.*DFZ); % Camber Stiffness
 KY = KY0.*(1 - PKY3.*abs(GAMMAY));
 BY = KY./(CY.*DY);
@@ -133,7 +126,9 @@ FY_C = GYK.*FY + SVYK;
 
 % FY = (DYK.*cos(CYK.*atan( BYK.*KS - EYK.*(BYK.*KS - atan(BYK.*KS))))) + SVYK;
 
-FY = FY_C;
+FY_Combined = FY_C; % Divide by 1.3 for Closer Fudge Factor
+
+FY = FY_Combined;
 
 %% Longitudinal Code
 
@@ -146,6 +141,7 @@ CX = PCX1.*LCX;
 MUX = (PDX1 + PDX2.*DFZ).*(1 - PDX3.*(GAMMA.^2)).*LMUX;
 DX = MUX.*FZ;
 EX = (PEX1 + PEX2.*DFZ + PEX3.*(DFZ.^2)).*(1 - PEX4.*sign(KAPPAX)).*LEX;
+
 KX = FZ.*(PKX1 + PKX2.*DFZ).*exp(PKX3.*DFZ).*LKX; % Longitudinal Slip Stiffness
 BX = KX./(CX.*DX);
 FX0 = DX.*sin( (CX.*atan(BX.*KAPPAX - EX.*(BX.*KAPPAX - atan(BX.*KAPPAX)))) + SVX);
@@ -157,8 +153,11 @@ CXAL = RCX1;
 BXAL = RBX1.*cos( atan(RBX2.*KAPPA)).*LXAL; % cos term will always be positive regardless of slip ratio direction
 ALPHAS = ALPHA + SHXAL;
 EXAL = REX1 + REX2.*DFZ;
+
 GXAL = ( cos(CXAL.*atan(BXAL.*ALPHAS - EXAL.*(BXAL.*ALPHAS - atan(BXAL.*ALPHAS))))) ./ ( cos(CXAL.*atan(BXAL.*SHXAL - EXAL.*(BXAL.*SHXAL - atan(BXAL.*SHXAL)))));
-FX_C = GXAL.*FX0;
+
+FX_C = abs(GXAL).*FX0;
+
 FX = FX_C;
 end
 

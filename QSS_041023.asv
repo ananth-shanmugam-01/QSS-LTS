@@ -1,8 +1,7 @@
 %% Quasi-Steady State Lap Time Simulation
 
 % 09/12/2023
-% Included FSUK track model using GPS-based curvature calculation
-% MF5.2 IPG Tyre Model 
+% Included 
 
 clear;
 clc;
@@ -19,7 +18,7 @@ sector_dist = 1;
 % [ay_meas, dist, vel_ms, time, track_dist, curvature_spline, curvature] = logged_data('track_data.txt',sector_dist);
 
 %% FSUK
-[track_dist, curvature_spline, measVelocity, dist, time] = FSUKTrackProfile(sector_dist);
+[track_dist, curvature_spline, measVelocity] = FSUKTrackProfile(sector_dist)
 
 %% Converting Vehicle Properties to Struct 
 % Avoiding the use of global parameters
@@ -340,7 +339,7 @@ fontsize(gca,13,'points')
 figure
 hold on
 plot(track_dist,final_vel,'k','LineWidth',2,'DisplayName','QSS')
-plot(dist,measVelocity,'r','LineWidth',2,'DisplayName','Track')
+plot(dist,rawData.data_lap2.Chassis_Speed_mps,'r','LineWidth',2,'DisplayName','Track')
 hold off
 legend
 grid minor
