@@ -69,6 +69,8 @@ carData.Powertrain.nDrive = 2; % number of drive wheels, switch case later?
 % Vmax Calculations, FS style
 carData.Powertrain.vMax = (carData.Powertrain.RPM(end)/carData.Powertrain.rGear)*0.10472*carData.Chassis.radWheel; % Converted to m/s
 
+save('carData.mat','carData')
+
 %% Generate Boundary Speed Profile
 clc;
 
