@@ -10,7 +10,7 @@ FZ0 = 1100;
 
 KAPPA = SlipRatio; % Slip Ratio [-]
 ALPHA = SlipAngle; % degrees to [Rad]
-FZ = abs(NormalLoad); % [N]
+FZ = (NormalLoad); % [N]
 GAMMA = Camber*pi/180; % degrees to [Rad]
 
 LFZO = 1.2;
