@@ -1,0 +1,84 @@
+%%%%%%%%%%%%%%%%%%%%%%%
+% CasADi Problem Formulation of Vehicle Model
+% Reference - Mario Boxheimer 
+
+
+%% initialize Problem
+nlp = casadi.Opti();
+
+% Input Values
+Vx = velocity;
+
+% decision variables & box constraints
+delta = nlp.variable(); nlp.subject_to(-30*pi/180<=delta<=30*pi/180);                                                      % steering angle (rad)
+beta = nlp.variable(); nlp.subject_to(-5*pi/180<=beta<=5*pi/180);                                                          % sideslip angle (rad)
+yaw_rate = nlp.variable(); nlp.subject_to(-90*pi/180<=yaw_rate<=90*pi/180);                                                % yaw rate (rad/s)
+throttle_position = nlp.variable(); nlp.subject_to(0<=throttle_position<=1);                                               % throttle position (-)
+brake_pressure = nlp.variable(); nlp.subject_to(0<=brake_pressure<=1);                                                     % brake pressure (bar)
+wheel_rot_fl = nlp.variable(); nlp.subject_to(0<=wheel_rot_fl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FL wheel angular velocity (rad/s)
+wheel_rot_fr = nlp.variable(); nlp.subject_to(0<=wheel_rot_fr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FR wheel angular velocity (rad/s)
+wheel_rot_rl = nlp.variable(); nlp.subject_to(0<=wheel_rot_rl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RL wheel angular velocity (rad/s)
+wheel_rot_rr = nlp.variable(); nlp.subject_to(0<=wheel_rot_rr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RR wheel angular velocity (rad/s)
+
+%% Equations of Motion
+
+g = 9.81;
+DF_total = 0.5*1.225*carData.Aero.CLA*Vx^2;
+DF_front = carData.Aero.rAeroBalance*DF_total;
+DF_rear = (1-carData.Aero.rAeroBalance)*DF_front;
+Fd = 0.5*1.225*carData.Aero.CDA*Vx^2;
+
+ay_control = Vx*yaw_rate;
+
+% Motor Tractive Force
+wheel_avg_vel = 0.5*(wheel_rot_rl + wheel_rot_rr);
+motor_rot_vel = wheel_avg_vel * carData.Powertrain.rGear *60/(2*pi);
+F_tractive = throttle_position * carData.Powertrain.effPU * carData.Powertrain.nDrive / (motor_rot_vel * (2*pi) / 60) *...
+        (8.65035700647986e-17*(motor_rot_vel.^5) - 4.41602015686910e-12*(motor_rot_vel^4) + 7.31673593263643e-08*(motor_rot_vel^3) - 0.000481455921495143*(motor_rot_vel^2) + 3.34888694342485*(motor_rot_vel) - 609.934138992043)....
+        * carData.Powertrain.rGear/carData.Chassis.radWheel;
+
+% Braking Decelerative Force
+Front_Brake_Force = 2*(brake_pressure * 100 * carData.Brakes.rBrakeBias .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
+Rear_Brake_Force = 2*(brake_pressure * 100 *(1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
+F_brake = -(Front_Brake_Force + Rear_Brake_Force);
+
+ax_control = (F_tractive + F_brake - Fd) / carData.Chassis.mass;
+
+% Slip Angles
+alpha_fl = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5)) - delta;
+alpha_fr = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5)) - delta;
+alpha_rl = (Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5);
+alpha_rr = (Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5);
+
+% Slip Ratios
+kappa_fl = (wheel_rot_fl*carData.Chassis.radWheel - Vx)/Vx;
+kappa_fr = (wheel_rot_fr*carData.Chassis.radWheel - Vx)/Vx;
+kappa_rl = (wheel_rot_rl*carData.Chassis.radWheel - Vx)/Vx;
+kappa_rr = (wheel_rot_rr*carData.Chassis.radWheel - Vx)/Vx;
+
+% Lateral Load Transfer
+del_w_f = (carData.Chassis.SprungMass * ay_control * carData.Suspension.heightCG2rollAxis * carData.Suspension.mechanicalBalance/carData.Chassis.trackWidth)...
+    + (carData.Chassis.sprungMassFront *ay_control * carData.Suspension.rollCentreFront / carData.Chassis.trackWidth) + (carData.Chassis.unsprungMass * carData.Chassis.heightUnsprungCOG * ay_control / carData.Chassis.trackWidth);
+del_w_r = (carData.Chassis.SprungMass * ay_control * carData.Suspension.heightCG2rollAxis * (1-carData.Suspension.mechanicalBalance)/carData.Chassis.trackWidth)...
+    + (carData.Chassis.sprungMassRear * ay_control * carData.Suspension.rollCentreRear / carData.Chassis.trackWidth) + (carData.Chassis.unsprungMass * carData.Chassis.heightUnsprungCOG * ay_control / carData.Chassis.trackWidth);
+
+% Longitudinal Load Transfer
+longLT = carData.Chassis.mass * ax_control * carData.Chassis.heightSprungCOG / (2 * carData.Chassis.wheelBase);
+
+% Wheel Loads 
+w_fl = (carData.Chassis.massFront * g / 2) + (del_w_f) - longLT + (DF_front/2);
+w_fr = (carData.Chassis.massFront * g / 2) - (del_w_f) - longLT + (DF_front/2);
+w_rl = (carData.Chassis.massRear * g / 2) + (del_w_r) + longLT + (DF_rear/2);
+w_rr = (carData.Chassis.massRear * g / 2) - (del_w_r) + longLT + (DF_rear/2);
+
+% Wheel Forces
+[fy_fl, fx_fl] = MF52_Combined(kappa_fl,alpha_fl,w_fl,0);
+[fy_fr, fx_fr] = MF52_Combined(kappa_fr,alpha_fr,w_fr,0);
+[fy_rl, fx_rl] = MF52_Combined(kappa_rl,alpha_rl,w_rl,0);
+[fy_rr, fx_rr] = MF52_Combined(kappa_rr,alpha_rr,w_rr,0);
+
+% Car States
+ay_out = (fy_fl + fy_fr + fy_rl + fy_rr)/carData.Chassis.mass;
+ax_out = (fx_fl + fx_fr + fx_rl + fx_rr)/carData.Chassis.mass;
+Mz_out = (carData.Chassis.frontMomentArm*(fy_fl + fy_fr) + 0.5*carData.Chassis.trackWidth*(fx_fl + fx_rl) ...
+          - carData.Chassis.rearMomentArm*(fy_rl + fy_rr) - 0.5*carData.Chassis.trackWidth*(fx_fr + fx_rr))/carData.Chassis.yawInertia;
