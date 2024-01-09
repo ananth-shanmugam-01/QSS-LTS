@@ -5,20 +5,21 @@ addpath('C:\Users\admin\Documents\CasAdi')
 
 %% Create Track
 sectorDistance = 1;
-[trackDistance, trackCurvature] = preProccess.trackModel('track_data.txt', sectorDistance);
+[trackDistance, trackCurvature] = preProccess.trackModel('dataFiles\230722_Endurance_lap2.mat', sectorDistance);
 
 %% Initialise Vehicle Model
 carData = preProccess.initVehicleModel();
 
 %% run GGV Calc
 % Unable to run in function?
-    
+startTimer = tic;
+
 velocityRange = linspace(10,carData.Powertrain.vMax-6,10);
 clear GGV_out
 GGV_out = [];
 
 for i = 1:numel(velocityRange)
-
+try
     velocity = velocityRange(i);
     % initialize GGV-data
     ax_steps = 10;  % number of discretization points
@@ -102,6 +103,8 @@ for i = 1:numel(velocityRange)
     GGV.ax = linspace(GGV.ax(1),GGV.ax(end),length(GGV.ax));
     
     for i_ = 2:length(GGV.ax)-1
+
+        try
         nlp = []; vehicleModel;
         % objective
         nlp.minimize(-ay_out);
@@ -133,32 +136,44 @@ for i = 1:numel(velocityRange)
         GGV.beta(i_) = sol.value(delta);
         GGV.throttle_position(i_) = sol.value(throttle_position);
         GGV.brake_pressure(i_) = sol.value(brake_pressure);
+
+        catch
+
+        end
     end
 
     GGV_out(i,:,1) = [velocity.*ones(2*ax_steps,1)]; % Vel
     GGV_out(i,:,2) = [(GGV.ax)'; (GGV.ax)']; % Ax
     GGV_out(i,:,3) = [(GGV.ay); -(GGV.ay)]; % Ay
+
+catch 
+
+end
+
 end
 
 Ay = reshape(GGV_out(:,:,3),[], 1);
 Ax = reshape(GGV_out(:,:,2),[], 1);
 vel = reshape(GGV_out(:,:,1),[], 1);
 
+GGVComplete = [vel, Ay, Ax];
 GGVAcceleration = [vel(Ax>0), Ay(Ax>0), Ax(Ax>0)];
 GGVDeceleration = [vel(Ax<0), Ay(Ax<0), Ax(Ax<0)];
 
 %% run lap simulation 
 
-outputs = runLapSim(GGVAcceleration, GGVDeceleration, trackDistance, trackCurvature, sectorDistance);
+outputs = runLapSim(GGVComplete, GGVAcceleration, GGVDeceleration, trackDistance, trackCurvature, sectorDistance);
 
-
+clc;
+stopTimer = toc(startTimer);
+disp(['LTS Complete. Time taken: ', num2str(stopTimer), '(s)'])
 %% post-process outputs
 
 figure
-t = tiledlayout(4,2);
+t = tiledlayout(3,1);
 title(t,'QSS Results')
 
-nexttile([2 1])
+nexttile
 hold on
 plot(outputs.dist,outputs.vCar)
 ylabel('vCar (m/s)')
@@ -166,16 +181,25 @@ xlabel('sLap (m)')
 grid on; grid minor; box on;
 title(['Lap Time: ', num2str(outputs.time(end)), '(s)'])
 
-nexttile([2 1])
+nexttile
 hold on
 plot(outputs.dist,outputs.gLong,'r','DisplayName','Ax')
+hold off
+grid on; grid minor; box on;
+ylabel('Ax (m/s^2)')
+xlabel('sLap (m)')
+
+nexttile
+hold on
 plot(outputs.dist,outputs.gLat,'b','DisplayName','Ay')
 hold off
 grid on; grid minor; box on;
-ylabel('Ax/y (m/s^2)')
+ylabel('Ay (m/s^2)')
 xlabel('sLap (m)')
 
-nexttile([2 2])
+
+% nexttile([2 2])
+figure
 grid on; grid minor; box on;
 surf(GGV_out(:,:,3),GGV_out(:,:,2),GGV_out(:,:,1))
 hold on

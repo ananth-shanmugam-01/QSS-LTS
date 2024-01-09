@@ -52,8 +52,6 @@ function carData = initVehicleModel()
     carData.Powertrain.vMaxDrag = calcDragLimitVel(carData); % Calculate Drag Based top speed limit
     carData.Powertrain.vMax = min(carData.Powertrain.vMaxRPM,carData.Powertrain.vMaxDrag); % Select minimum of two as speed limit 
 
-
-
     function [rpmInterp, torqInterp] = powerCurveInterpolation(filename)
 
         % Interpolation for Powertrain Model

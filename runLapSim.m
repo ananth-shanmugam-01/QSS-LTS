@@ -1,4 +1,4 @@
-function outputs = runLapSim(GGVAcceleration, GGVDeceleration, trackDistance, trackCurvature, sectorDistance)
+function outputs = runLapSim(GGVComplete, GGVAcceleration, GGVDeceleration, trackDistance, trackCurvature, sectorDistance)
 
     tic
     
@@ -11,17 +11,18 @@ function outputs = runLapSim(GGVAcceleration, GGVDeceleration, trackDistance, tr
     maxAccelerationGGV.Ax = GGVAcceleration(posAyIdx,3);
     maxAccelerationGGV.Ay = GGVAcceleration(posAyIdx,2);
     
-    velRange = unique(maxAccelerationGGV.Vel);
+    velRange = unique(GGVComplete(:,1));
     for i = 1:numel(velRange)
-        idx = find(maxAccelerationGGV.Vel == velRange(i));
-        LSP.ktMax(i) = max(maxAccelerationGGV.kt(idx));
+        idx = find(GGVComplete(:,1) == velRange(i));
+        kt = GGVComplete(idx,2)./(GGVComplete(idx,1).^2);
+        LSP.ktMax(i) = max(kt);
         LSP.vel(i) = velRange(i);
     end
     
     ktInterp = linspace(min(LSP.ktMax),max(LSP.ktMax),10000);
     cornerVelInterp = griddedInterpolant(flip(sort(LSP.ktMax,'descend')),flip(LSP.vel),'linear','linear');
     
-    maxAccelerationInterp = scatteredInterpolant(maxAccelerationGGV.Vel, maxAccelerationGGV.Ay, maxAccelerationGGV.Ax,'natural','linear');
+    maxAccelerationInterp = scatteredInterpolant(maxAccelerationGGV.Vel, maxAccelerationGGV.Ay, maxAccelerationGGV.Ax,'linear','nearest');
     
     posAyIdx = find(GGVDeceleration(:,2) >= 0);
     maxDecelerationGGV= struct;
@@ -29,7 +30,7 @@ function outputs = runLapSim(GGVAcceleration, GGVDeceleration, trackDistance, tr
     maxDecelerationGGV.Ax = GGVDeceleration(posAyIdx,3);
     maxDecelerationGGV.Ay = GGVDeceleration(posAyIdx,2);
     
-    maxDecelerationInterp = scatteredInterpolant(maxDecelerationGGV.Vel, maxDecelerationGGV.Ay, maxDecelerationGGV.Ax,'natural','linear');
+    maxDecelerationInterp = scatteredInterpolant(maxDecelerationGGV.Vel, maxDecelerationGGV.Ay, maxDecelerationGGV.Ax,'linear','linear');
     
     %% Interpolation Testing
     
@@ -40,17 +41,18 @@ function outputs = runLapSim(GGVAcceleration, GGVDeceleration, trackDistance, tr
         velInterp(i) = cornerVelInterp(range(i));
     end
     
-%     figure
-%     hold on
-%     plot(LSP.ktMax,LSP.vel)
-%     plot(range, velInterp)
-%     hold off
+    figure
+    hold on
+    plot(LSP.ktMax,LSP.vel)
+    plot(range, velInterp)
+    hold off
     
     %% Limit Speed Calculation
     
     maxCornerVel = zeros(numel(trackCurvature),1);
     for i = 1:numel(trackCurvature)
         maxCornerVel(i) = min(29.038,cornerVelInterp(abs(trackCurvature(i))));
+        maxCornerVel(i) = max(maxCornerVel(i),5);
     end
     
     %% Forward Speed Calculation
@@ -118,7 +120,7 @@ function outputs = runLapSim(GGVAcceleration, GGVDeceleration, trackDistance, tr
     for i = 1:length(trackDistance)-1
         finalAx(i) = (finalVel(i+1)^2 - finalVel(i)^2)/(2*sectorDistance);
     end
-    finalAx(length(finalVel)) = (finalVel(1)^2 - finalVel(length(finalVel))^2)/(2*sectorDistance);
+    finalAx(length(finalVel)) = (finalVel(2)^2 - finalVel(length(finalVel))^2)/(2*sectorDistance);
     
     finalAy = trackCurvature'.*finalVel.^2;
     

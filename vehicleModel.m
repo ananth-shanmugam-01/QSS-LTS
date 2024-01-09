@@ -4,6 +4,8 @@
 
 
 %% initialize Problem
+import casadi.*
+
 nlp = casadi.Opti();
 
 % Input Values
@@ -31,11 +33,10 @@ Fd = 0.5*1.225*carData.Aero.CDA*Vx^2;
 ay_control = Vx*yaw_rate;
 
 % Motor Tractive Force
+torqueInterp = interpolant('LUT','bspline',{[carData.Powertrain.RPM]},carData.Powertrain.torqueMotor); % CasADi feature
 wheel_avg_vel = 0.5*(wheel_rot_rl + wheel_rot_rr);
 motor_rot_vel = wheel_avg_vel * carData.Powertrain.rGear *60/(2*pi);
-F_tractive = throttle_position * carData.Powertrain.effPU * carData.Powertrain.nDrive / (motor_rot_vel * (2*pi) / 60) *...
-        (8.65035700647986e-17*(motor_rot_vel.^5) - 4.41602015686910e-12*(motor_rot_vel^4) + 7.31673593263643e-08*(motor_rot_vel^3) - 0.000481455921495143*(motor_rot_vel^2) + 3.34888694342485*(motor_rot_vel) - 609.934138992043)....
-        * carData.Powertrain.rGear/carData.Chassis.radWheel;
+F_tractive = throttle_position * carData.Powertrain.effPU * carData.Powertrain.nDrive * torqueInterp(motor_rot_vel) * carData.Powertrain.rGear/carData.Chassis.radWheel;
 
 % Braking Decelerative Force
 Front_Brake_Force = 2*(brake_pressure * 100 * carData.Brakes.rBrakeBias .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
