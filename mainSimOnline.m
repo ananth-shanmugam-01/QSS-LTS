@@ -23,6 +23,10 @@ fitting_factor = 0.5;
 
 trackCurvature = csaps(dist, curvature,fitting_factor,trackDistance);
 
+trackData = struct;
+trackData.trackDistance = trackDistance;
+trackData.trackCurvature = trackCurvature;
+
 %% Initialise Vehicle Model
 carData = preProccess.initVehicleModel();
 
@@ -69,7 +73,7 @@ for i = 2:length(trackCurvature)
     curvature = trackCurvature(i);
 
     % find Maximum Forward Acceleration
-    nlpBSP = []; 
+    % nlpBSP = []; 
     
     % Call Vehicle Model
     vehicleModels.boundarySpeed;
@@ -123,87 +127,9 @@ for i = 2:length(trackCurvature)
     LSP.wheel_rot_rr(i)        = sol.value(wheel_rot_rr);      % RR wheel angular velocity (rad/s)
     LSP.F_drag(i)       = sol.value(Fd);
 
-    disp([ num2str(i), '/',num2str(numel(trackCurvature))])
-end
+    disp(['Boundary Speed Profile -- ',   num2str(i), '/',num2str(numel(trackCurvature))])
 
-%%
-% figure(1); plotbrowser("on");
-% 
-% tiledlayout(3,1)
-% nexttile
-% plot(trackDistance,LSP.Vx)
-% ylabel('Vx')
-% 
-% nexttile
-% plot(trackDistance,LSP.Ay)
-% ylabel('Ay')
-% 
-% nexttile
-% hold on
-% plot(trackDistance,LSP.Ax,'DisplayName','ax_out')
-% plot(trackDistance,LSP.Ax_control,'DisplayName','ax_control')
-% hold off; legend;
-% ylabel('Ax')
-% 
-% figure(2); plotbrowser("on"); tiledlayout(7,1)
-% nexttile
-% plot(trackDistance,LSP.Vx)
-% ylabel('Vx')
-% 
-% nexttile
-% plot(trackDistance,trackCurvature)
-% ylabel('kt')
-% 
-% nexttile
-% plot(trackDistance,rad2deg(LSP.delta))
-% ylabel('delta')
-% 
-% nexttile
-% plot(trackDistance,rad2deg(LSP.beta))
-% ylabel('beta')
-% 
-% nexttile
-% plot(trackDistance,LSP.yaw_rate)
-% ylabel('yawRate')
-% 
-% nexttile
-% yyaxis left
-% plot(trackDistance,LSP.throttle_position)
-% ylabel('TP')
-% yyaxis right
-% plot(trackDistance,LSP.brake_pressure)
-% ylabel('BP')
-% 
-% nexttile
-% hold on
-% plot(trackDistance,rad2deg(LSP.wheel_rot_fl),'DisplayName','FL')
-% plot(trackDistance,rad2deg(LSP.wheel_rot_fr),'DisplayName','FR')
-% plot(trackDistance,rad2deg(LSP.wheel_rot_rl),'DisplayName','RL')
-% plot(trackDistance,rad2deg(LSP.wheel_rot_rr),'DisplayName','RR')
-% hold off
-% ylabel('WheelRot')
-% legend
-% 
-% figure(3); plotbrowser("on");
-% 
-% tiledlayout(3,1)
-% nexttile
-% plot(trackDistance,LSP.Vx)
-% ylabel('Vx')
-% 
-% nexttile
-% hold on
-% plot(trackDistance,LSP.F_drag,'DisplayName','F_drag')
-% ylabel('N')
-% hold off
-% legend
-% 
-% nexttile
-% hold on
-% plot(trackDistance,LSP.Ax,'DisplayName','ax_out')
-% plot(trackDistance,LSP.Ax_control,'DisplayName','ax_control')
-% hold off; legend;
-% ylabel('Ax')
+end
 
 %% Identify Apexes
 
@@ -270,7 +196,6 @@ for i = ApexStartPosition:numel(trackDistance)
         % initialization of decision variables
         nlpFSP.set_initial(delta,0);
         nlpFSP.set_initial(beta,0);
-        nlpFSP.set_initial(yaw_rate,0);
         nlpFSP.set_initial(throttle_position,1);
         nlpFSP.set_initial(wheel_rot_fl,LSP.wheel_rot_fl(i));
         nlpFSP.set_initial(wheel_rot_fr,LSP.wheel_rot_fr(i));
@@ -280,7 +205,6 @@ for i = ApexStartPosition:numel(trackDistance)
         % Constraints
         nlpFSP.subject_to(ay_out == ay_control);
         nlpFSP.subject_to(ax_out == ax_control);
-    %   nlpFSP.subject_to(yaw_rate == curvature*V_current); % Investigate
         nlpFSP.subject_to(-10 <= Mz_out <= 10);
    
         nlpFSP.subject_to(-12*pi/180<=alpha_fl<=12*pi/180);
@@ -352,7 +276,7 @@ for i = ApexStartPosition:numel(trackDistance)
         disp('---Infeasible State / Hit Boundary Speed------')
     end
 
-    disp([ num2str(i), '/',num2str(numel(trackCurvature))])
+    disp(['Forward Speed Profile -- ',  num2str(i), '/',num2str(numel(trackCurvature))])
     
 end
 
@@ -377,7 +301,6 @@ for i = 1:ApexStartPosition-1
         % initialization of decision variables
         nlpFSP.set_initial(delta,0);
         nlpFSP.set_initial(beta,0);
-        nlpFSP.set_initial(yaw_rate,0);
         nlpFSP.set_initial(throttle_position,1);
         nlpFSP.set_initial(wheel_rot_fl,LSP.wheel_rot_fl(i));
         nlpFSP.set_initial(wheel_rot_fr,LSP.wheel_rot_fr(i));
@@ -387,7 +310,6 @@ for i = 1:ApexStartPosition-1
         % Constraints
         nlpFSP.subject_to(ay_out == ay_control);
         nlpFSP.subject_to(ax_out == ax_control);
-    %   nlpFSP.subject_to(yaw_rate == curvature*V_current); % Investigate
         nlpFSP.subject_to(-10 <= Mz_out <= 10);
    
         nlpFSP.subject_to(-12*pi/180<=alpha_fl<=12*pi/180);
@@ -429,7 +351,7 @@ for i = 1:ApexStartPosition-1
         disp('---Infeasible State / Hit Boundary Speed------')
     end
 
-    disp([ num2str(i), '/',num2str(numel(trackCurvature))])
+    disp(['Forward Speed Profile -- ',  num2str(i), '/',num2str(numel(trackCurvature))])
 
 end
 
@@ -477,7 +399,6 @@ for i = numel(trackDistance):-1:2
         nlpRSP.set_initial(V_out,V_current);
         nlpRSP.set_initial(delta,0);
         nlpRSP.set_initial(beta,0);
-        nlpRSP.set_initial(yaw_rate,0);
         nlpRSP.set_initial(brake_pressure,0);
         nlpRSP.set_initial(wheel_rot_fl,V_current/carData.Chassis.radWheel);
         nlpRSP.set_initial(wheel_rot_fr,V_current/carData.Chassis.radWheel);
@@ -487,7 +408,6 @@ for i = numel(trackDistance):-1:2
         % Constraints
         nlpRSP.subject_to(ay_out == ay_control);
         nlpRSP.subject_to(ax_out == ax_control);
-    %   nlpRSP.subject_to(yaw_rate == curvature*V_current); % Investigate
         nlpRSP.subject_to(-10 <= Mz_out <= 10);
         nlpRSP.subject_to(V_out == V_out_guess);
         nlpRSP.subject_to(V_out <= LSP.Vx(i-1));
@@ -530,15 +450,58 @@ for i = numel(trackDistance):-1:2
         disp('---Infeasible State / Hit Boundary Speed------')
     end
 
-    disp([ num2str(i), '/',num2str(numel(trackCurvature))])
+    disp(['Reverse Speed Profile -- ', num2str(i), '/',num2str(numel(trackCurvature))])
 
 end
 
 %%
 
-figure
+lapData = postProcess.fnPostSimProcess(trackData,LSP,FSP,RSP);
+
+%% Plots
+
+figure(1); plotbrowser("on");
+
+tiledlayout(3,1)
+nexttile
 hold on
-plot(trackDistance,LSP.Vx)
-plot(trackDistance,RSP.V_current)
-plot(trackDistance,FSP.V_current)
+plot(trackData.trackDistance,LSP.Vx)
+plot(trackData.trackDistance,FSP.V_current)
+plot(trackData.trackDistance,RSP.V_current)
+plot(trackData.trackDistance, lapData.vCar,'k','LineWidth',1.5)
 hold off
+subtitle(['Calculated Lap Time --', num2str(lapData.time(end)),'(s)'])
+
+nexttile
+hold on
+plot(trackDistance,lapData.gLat,'DisplayName','gLat')
+plot(trackDistance,lapData.gLong,'DisplayName','gLong')
+ylabel('Acceleration')
+hold off
+
+nexttile
+plot(trackDistance,lapData.vYaw)
+ylabel('yawRate')
+
+
+figure(2); plotbrowser("on"); tiledlayout(4,1)
+nexttile
+hold on
+plot(trackData.trackDistance,LSP.Vx)
+plot(trackData.trackDistance,FSP.V_current)
+plot(trackData.trackDistance,RSP.V_current)
+plot(trackData.trackDistance, lapData.vCar,'k','LineWidth',1.5)
+hold off
+subtitle(['Simulated Lap Time: ', num2str(lapData.time(end)),'(s)'])
+
+nexttile
+plot(trackDistance,lapData.aSteer)
+ylabel('aSteer')
+
+nexttile
+plot(trackDistance,lapData.rThrottle)
+ylabel('rThrottle')
+
+nexttile
+plot(trackDistance,lapData.pBrake)
+ylabel('pBrake')

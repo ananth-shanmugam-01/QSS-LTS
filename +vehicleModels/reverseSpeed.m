@@ -17,7 +17,6 @@ betaMax = 3;
 V_out = nlpRSP.variable(); nlpRSP.subject_to(0<=V_out<=carData.Powertrain.vMax);                                           % steering angle (rad)
 delta = nlpRSP.variable(); nlpRSP.subject_to(deltaMin*pi/180<=delta<=deltaMax*pi/180);                                           % steering angle (rad)
 beta = nlpRSP.variable(); nlpRSP.subject_to(betaMin*pi/180<=beta<=betaMax*pi/180);                                               % sideslip angle (rad)
-yaw_rate = nlpRSP.variable(); nlpRSP.subject_to(-120*pi/180<=yaw_rate<=120*pi/180);                                                % yaw rate (rad/s)
 brake_pressure = nlpRSP.variable(); nlpRSP.subject_to(0<=brake_pressure<=1);                                                     % brake pressure (bar)
 wheel_rot_fl = nlpRSP.variable(); nlpRSP.subject_to(0<=wheel_rot_fl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FL wheel angular velocity (rad/s)
 wheel_rot_fr = nlpRSP.variable(); nlpRSP.subject_to(0<=wheel_rot_fr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FR wheel angular velocity (rad/s)
@@ -25,6 +24,8 @@ wheel_rot_rl = nlpRSP.variable(); nlpRSP.subject_to(0<=wheel_rot_rl<=carData.Pow
 wheel_rot_rr = nlpRSP.variable(); nlpRSP.subject_to(0<=wheel_rot_rr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RR wheel angular velocity (rad/s)
 
 %% Equations of Motion
+
+yaw_rate = V_out * Kt;
 
 g = 9.81;
 DF_total = 0.5*1.225*carData.Aero.CLA*V_out^2;

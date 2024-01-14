@@ -16,15 +16,15 @@ betaMax = 3;
 % decision variables & box constraints
 delta = nlpFSP.variable(); nlpFSP.subject_to(deltaMin*pi/180<=delta<=deltaMax*pi/180);                                           % steering angle (rad)
 beta = nlpFSP.variable(); nlpFSP.subject_to(betaMin*pi/180<=beta<=betaMax*pi/180);                                               % sideslip angle (rad)
-yaw_rate = nlpFSP.variable(); nlpFSP.subject_to(-120*pi/180<=yaw_rate<=120*pi/180);                                                % yaw rate (rad/s)
 throttle_position = nlpFSP.variable(); nlpFSP.subject_to(0<=throttle_position<=1);                                               % throttle position (-)
-% brake_pressure = nlp.variable(); nlp.subject_to(0<=brake_pressure<=1);                                                     % brake pressure (bar)
 wheel_rot_fl = nlpFSP.variable(); nlpFSP.subject_to(0<=wheel_rot_fl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FL wheel angular velocity (rad/s)
 wheel_rot_fr = nlpFSP.variable(); nlpFSP.subject_to(0<=wheel_rot_fr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FR wheel angular velocity (rad/s)
 wheel_rot_rl = nlpFSP.variable(); nlpFSP.subject_to(0<=wheel_rot_rl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RL wheel angular velocity (rad/s)
 wheel_rot_rr = nlpFSP.variable(); nlpFSP.subject_to(0<=wheel_rot_rr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RR wheel angular velocity (rad/s)
 
 %% Equations of Motion
+
+yaw_rate = V_current*Kt;
 
 g = 9.81;
 DF_total = 0.5*1.225*carData.Aero.CLA*V_current^2;
@@ -43,7 +43,7 @@ F_tractive = throttle_position * carData.Powertrain.effPU * carData.Powertrain.n
 % Rear_Brake_Force = 2*(brake_pressure * 100 *(1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
 % F_brake = -(Front_Brake_Force + Rear_Brake_Force);
 
-ax_control = (F_tractive) / carData.Chassis.mass;
+ax_control = (F_tractive - Fd) / carData.Chassis.mass;
 
 % Slip Angles
 alpha_fl = ((V_current*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (V_current + yaw_rate*carData.Chassis.trackWidth*0.5)) - delta;
@@ -80,7 +80,7 @@ w_rr = (carData.Chassis.massRear * g / 2) - (del_w_r) + longLT + (DF_rear/2);
 
 % Car States
 ay_out = (fy_fl + fy_fr + fy_rl + fy_rr)/carData.Chassis.mass;
-ax_out = (fx_fl + fx_fr + fx_rl + fx_rr - Fd)/carData.Chassis.mass;
+ax_out = (fx_rl + fx_rr)/carData.Chassis.mass;
 Mz_out = (carData.Chassis.frontMomentArm*(fy_fl + fy_fr) + 0.5*carData.Chassis.trackWidth*(fx_fl + fx_rl) ...
           - carData.Chassis.rearMomentArm*(fy_rl + fy_rr) - 0.5*carData.Chassis.trackWidth*(fx_fr + fx_rr))/carData.Chassis.yawInertia;
 

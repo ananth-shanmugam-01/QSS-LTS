@@ -41,11 +41,11 @@ function outputs = runLapSim(GGVComplete, GGVAcceleration, GGVDeceleration, trac
         velInterp(i) = cornerVelInterp(range(i));
     end
     
-    figure
-    hold on
-    plot(LSP.ktMax,LSP.vel)
-    plot(range, velInterp)
-    hold off
+%     figure
+%     hold on
+%     plot(LSP.ktMax,LSP.vel)
+%     plot(range, velInterp)
+%     hold off
     
     %% Limit Speed Calculation
     
