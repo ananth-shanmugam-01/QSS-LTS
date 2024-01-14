@@ -10,23 +10,13 @@ function [trackDist, curvatureSpline] = trackModel(fileName,sector_dist)
     [kt, calcSpeed, dist] = GPScurvature(latData,longData,altData,time);
     
     trackDist = 0:sector_dist:dist(end);
-    curvatureSpline = csaps(dist, kt,0.7,trackDist);
-     
-    % figure
-    % tiledlayout(2,1)
-    % nexttile
-    % hold on
-    % plot(dist,calcSpeed,'DisplayName','GPS Speed')
-    % plot(dist,vel,'DisplayName','Meas Chassis Speed')
-    % hold off
-    % legend
-    % grid minor
-    % 
-    % nexttile
-    % hold on
-    % plot(dist,kt,'DisplayName','GPS')
-    % plot(track_dist,curvature_spline,'DisplayName','Interp')
-    % hold off
+    curvatureSpline = csaps(dist, kt,0.8,trackDist);
+        
+    figure
+    hold on
+    plot(dist,kt,'DisplayName','GPS')
+    plot(trackDist,curvatureSpline,'DisplayName','Interp')
+    hold off
     
     function [kt, calcSpeed, dist] = GPScurvature(latData,longData,altData,time)
     

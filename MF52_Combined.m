@@ -33,8 +33,8 @@ LXAL    =   1;
 
 LKY     =   1; % 1
 LKX     =   1; %  0.7
-LMUY    =   0.6; % 0.38 Changed to Fit
-LMUX    =   0.6; % 0.25 Changed to Fit
+LMUY    =   0.38; % 0.38 Changed to Fit
+LMUX    =   0.25; % 0.25 Changed to Fit
 
 % Longitudinal Coefficients
 PCX1=1.2602;

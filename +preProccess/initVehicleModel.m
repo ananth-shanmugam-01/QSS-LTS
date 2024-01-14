@@ -46,7 +46,7 @@ function carData = initVehicleModel()
     % Powertrain Model
     [carData.Powertrain.RPM, carData.Powertrain.torqueMotor] = powerCurveInterpolation('AMK_21Nm.txt');
     carData.Powertrain.rGear = 15.55;
-    carData.Powertrain.effPU = 0.4;
+    carData.Powertrain.effPU = 0.8;
     carData.Powertrain.nDrive = 2; % number of drive wheels, switch case later?
     carData.Powertrain.vMaxRPM = (carData.Powertrain.RPM(end)/carData.Powertrain.rGear)*0.10472*carData.Chassis.radWheel; % Calculate RPM based top speed limit
     carData.Powertrain.vMaxDrag = calcDragLimitVel(carData); % Calculate Drag Based top speed limit

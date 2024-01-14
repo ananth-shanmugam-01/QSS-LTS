@@ -6,21 +6,27 @@
 %% initialize Problem
 import casadi.*
 
-nlp = casadi.Opti();
+nlpBSP = casadi.Opti();
 
 % Input Values
-Vx = velocity;
+Kt = curvature;
+
+deltaMin = -27;
+deltaMax = 27;
+betaMin = -3;
+betaMax = 3;
 
 % decision variables & box constraints
-delta = nlp.variable(); nlp.subject_to(-30*pi/180<=delta<=30*pi/180);                                                      % steering angle (rad)
-beta = nlp.variable(); nlp.subject_to(-5*pi/180<=beta<=5*pi/180);                                                          % sideslip angle (rad)
-yaw_rate = nlp.variable(); nlp.subject_to(-90*pi/180<=yaw_rate<=90*pi/180);                                                % yaw rate (rad/s)
-throttle_position = nlp.variable(); nlp.subject_to(0<=throttle_position<=1);                                               % throttle position (-)
-brake_pressure = nlp.variable(); nlp.subject_to(0<=brake_pressure<=1);                                                     % brake pressure (bar)
-wheel_rot_fl = nlp.variable(); nlp.subject_to(0<=wheel_rot_fl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FL wheel angular velocity (rad/s)
-wheel_rot_fr = nlp.variable(); nlp.subject_to(0<=wheel_rot_fr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FR wheel angular velocity (rad/s)
-wheel_rot_rl = nlp.variable(); nlp.subject_to(0<=wheel_rot_rl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RL wheel angular velocity (rad/s)
-wheel_rot_rr = nlp.variable(); nlp.subject_to(0<=wheel_rot_rr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RR wheel angular velocity (rad/s)
+Vx = nlpBSP.variable(); nlpBSP.subject_to(0<=Vx<=carData.Powertrain.vMax);
+delta = nlpBSP.variable(); nlpBSP.subject_to(deltaMin*pi/180<=delta<=deltaMax*pi/180);                                           % steering angle (rad)
+beta = nlpBSP.variable(); nlpBSP.subject_to(betaMin*pi/180<=beta<=betaMax*pi/180);                                               % sideslip angle (rad)
+yaw_rate = nlpBSP.variable(); nlpBSP.subject_to(-120*pi/180<=yaw_rate<=120*pi/180);                                                % yaw rate (rad/s)
+% throttle_position = nlp.variable(); nlp.subject_to(0<=throttle_position<=1);                                               % throttle position (-)
+% brake_pressure = nlp.variable(); nlp.subject_to(0<=brake_pressure<=1);                                                     % brake pressure (bar)
+wheel_rot_fl = nlpBSP.variable(); nlpBSP.subject_to(0<=wheel_rot_fl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FL wheel angular velocity (rad/s)
+wheel_rot_fr = nlpBSP.variable(); nlpBSP.subject_to(0<=wheel_rot_fr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FR wheel angular velocity (rad/s)
+wheel_rot_rl = nlpBSP.variable(); nlpBSP.subject_to(0<=wheel_rot_rl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RL wheel angular velocity (rad/s)
+wheel_rot_rr = nlpBSP.variable(); nlpBSP.subject_to(0<=wheel_rot_rr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RR wheel angular velocity (rad/s)
 
 %% Equations of Motion
 
@@ -30,20 +36,22 @@ DF_front = carData.Aero.rAeroBalance*DF_total;
 DF_rear = (1-carData.Aero.rAeroBalance)*DF_front;
 Fd = 0.5*1.225*carData.Aero.CDA*Vx^2;
 
-ay_control = Vx*Kt;
+ay_control = Kt * Vx^2;
 
 % Motor Tractive Force
-torqueInterp = interpolant('LUT','bspline',{[carData.Powertrain.RPM]},carData.Powertrain.torqueMotor); % CasADi feature
-wheel_avg_vel = 0.5*(wheel_rot_rl + wheel_rot_rr);
-motor_rot_vel = wheel_avg_vel * carData.Powertrain.rGear *60/(2*pi);
-F_tractive = throttle_position * carData.Powertrain.effPU * carData.Powertrain.nDrive * torqueInterp(motor_rot_vel) * carData.Powertrain.rGear/carData.Chassis.radWheel;
-
+% torqueInterp = interpolant('LUT','bspline',{[carData.Powertrain.RPM]},carData.Powertrain.torqueMotor); % CasADi feature
+% wheel_avg_vel = 0.5*(wheel_rot_rl + wheel_rot_rr);
+% motor_rot_vel = wheel_avg_vel * carData.Powertrain.rGear *60/(2*pi);
+% F_tractive = throttle_position * carData.Powertrain.effPU * carData.Powertrain.nDrive * torqueInterp(motor_rot_vel) * carData.Powertrain.rGear/carData.Chassis.radWheel;
+% 
 % Braking Decelerative Force
-Front_Brake_Force = 2*(brake_pressure * 100 * carData.Brakes.rBrakeBias .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
-Rear_Brake_Force = 2*(brake_pressure * 100 *(1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
-F_brake = -(Front_Brake_Force + Rear_Brake_Force);
+% Front_Brake_Force = 2*(brake_pressure * 100 * carData.Brakes.rBrakeBias .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
+% Rear_Brake_Force = 2*(brake_pressure * 100 *(1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
+% F_brake = -(Front_Brake_Force + Rear_Brake_Force);
+% 
+% ax_control = (F_tractive + F_brake) / carData.Chassis.mass;
 
-ax_control = (F_tractive + F_brake) / carData.Chassis.mass;
+ax_control = 0;
 
 % Slip Angles
 alpha_fl = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5)) - delta;
