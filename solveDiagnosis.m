@@ -1,27 +1,26 @@
-%%%%%%%%%%%%%%%%%%%%%%%
-% CasADi Problem Formulation of Vehicle Model
-% Reference - Mario Boxheimer 
+%% Failed Solve TroubleShooting
+velocity = 27; % 20.3592;
+ax_target = -1.6; % -0.8235;
 
-function GGV = deceleration(GGV,carData,velocity)
 
-%% initialize Problem
+% initialize Problem
 import casadi.*
 
-BA = casadi.Opti();
+CAB = casadi.Opti();
 
 % Input Values
 Vx = velocity;
 
 % decision variables & box constraints
-deltaScaled = BA.variable();                BA.subject_to(-1<=deltaScaled<=1);                  % steering angle (rad)
-betaScaled = BA.variable();                 BA.subject_to(-1<=betaScaled<=1);                   % sideslip angle (rad)
-yaw_rateScaled = BA.variable();             BA.subject_to(-1<=yaw_rateScaled<=1);               % yaw rate (rad/s)
-% throttle_positionScaled = BA.variable();    BA.subject_to(0<=throttle_positionScaled<=1);     % throttle position (-)
-brake_pressureScaled = BA.variable();       BA.subject_to(0<=brake_pressureScaled<=1);            % brake pressure (bar)
-wheel_rot_flScaled = BA.variable();         BA.subject_to(0<=wheel_rot_flScaled<=1)             % FL wheel angular velocity (rad/s)
-wheel_rot_frScaled = BA.variable();         BA.subject_to(0<=wheel_rot_frScaled<=1)             % FR wheel angular velocity (rad/s)
-wheel_rot_rlScaled = BA.variable();         BA.subject_to(0<=wheel_rot_rlScaled<=1)             % RL wheel angular velocity (rad/s)
-wheel_rot_rrScaled = BA.variable();         BA.subject_to(0<=wheel_rot_rrScaled<=1)             % RR wheel angular velocity (rad/s)
+deltaScaled = CAB.variable();                CAB.subject_to(-1<=deltaScaled<=1);                  % steering angle (rad)
+betaScaled = CAB.variable();                 CAB.subject_to(-1<=betaScaled<=1);                   % sideslip angle (rad)
+yaw_rateScaled = CAB.variable();             CAB.subject_to(-1<=yaw_rateScaled<=1);               % yaw rate (rad/s)
+% throttle_positionScaled = CAB.variable();    CAB.subject_to(0<=throttle_positionScaled<=1);     % throttle position (-)
+brake_pressureScaled = CAB.variable();       CAB.subject_to(0<=brake_pressureScaled<=1);            % brake pressure (bar)
+wheel_rot_flScaled = CAB.variable();         CAB.subject_to(0<=wheel_rot_flScaled<=1)             % FL wheel angular velocity (rad/s)
+wheel_rot_frScaled = CAB.variable();         CAB.subject_to(0<=wheel_rot_frScaled<=1)             % FR wheel angular velocity (rad/s)
+wheel_rot_rlScaled = CAB.variable();         CAB.subject_to(0<=wheel_rot_rlScaled<=1)             % RL wheel angular velocity (rad/s)
+wheel_rot_rrScaled = CAB.variable();         CAB.subject_to(0<=wheel_rot_rrScaled<=1)             % RR wheel angular velocity (rad/s)
 
 % Scaling for decision variables
 delta = deltaScaled * 30*pi/180;
@@ -37,7 +36,7 @@ wheel_rot_rr = wheel_rot_rrScaled * carData.Powertrain.vMax/carData.Chassis.radW
 % Initial Value for decision variables
 initWheelVel = (velocity/carData.Chassis.radWheel)/(carData.Powertrain.vMax/carData.Chassis.radWheel);
 
-%% Equations of Motion
+% Equations of Motion
 
 g = 9.81;
 DF_total = 0.5*1.225*carData.Aero.CLA*Vx^2;
@@ -55,7 +54,7 @@ ay_control = Vx*yaw_rate;
 
 % Braking Decelerative Force
 Front_Brake_Force = 2*(brake_pressure * carData.Brakes.rBrakeBias .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
-Rear_Brake_Force = 2*(brake_pressure * (1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonRear) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
+Rear_Brake_Force = 2*(brake_pressure *(1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonRear) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
 F_brake = -(Front_Brake_Force + Rear_Brake_Force);
 
 ax_control = (F_brake - Fd) / carData.Chassis.mass;
@@ -103,48 +102,89 @@ Mz_out = (carData.Chassis.frontMomentArm*(fy_fl + fy_fr) + 0.5*carData.Chassis.t
 
 % Residuals
 ax_res = ax_control - ax_out;
+ax_constraint_res = ax_out - ax_target;
 ay_res = ay_control - ay_out;
 brakeBias_res = carData.Brakes.rBrakeBias - brakeBias_tyre;
 
 % Path Constraints
 
-BA.subject_to(-12*pi/180<=alpha_fl<=12*pi/180);
-BA.subject_to(-12*pi/180<=alpha_fr<=12*pi/180);
-BA.subject_to(-12*pi/180<=alpha_rl<=12*pi/180);
-BA.subject_to(-12*pi/180<=alpha_rr<=12*pi/180);
+CAB.subject_to(-12*pi/180<=alpha_fl<=12*pi/180);
+CAB.subject_to(-12*pi/180<=alpha_fr<=12*pi/180);
+CAB.subject_to(-12*pi/180<=alpha_rl<=12*pi/180);
+CAB.subject_to(-12*pi/180<=alpha_rr<=12*pi/180);
 
-BA.subject_to(-0.1<=kappa_fl<=0.1);
-BA.subject_to(-0.1<=kappa_fr<=0.1);
-BA.subject_to(-0.1<=kappa_rl<=0.1);
-BA.subject_to(-0.1<=kappa_rr<=0.1);
+CAB.subject_to(-0.15<=kappa_fl<=0.15);
+CAB.subject_to(-0.15<=kappa_fr<=0.15);
+CAB.subject_to(-0.15<=kappa_rl<=0.15);
+CAB.subject_to(-0.15<=kappa_rr<=0.15);
 
 % objective
-BA.minimize(ax_out);
+CAB.minimize(-ay_out);
 
 % initialization of decision variables
-BA.set_initial(deltaScaled,0);
-BA.set_initial(betaScaled,0);
-BA.set_initial(yaw_rateScaled,0);
-BA.set_initial(brake_pressureScaled,0);
-BA.set_initial(wheel_rot_flScaled,initWheelVel);
-BA.set_initial(wheel_rot_frScaled,initWheelVel);
-BA.set_initial(wheel_rot_rlScaled,initWheelVel);
-BA.set_initial(wheel_rot_rrScaled,initWheelVel);
+CAB.set_initial(deltaScaled,0);
+CAB.set_initial(betaScaled,0);
+CAB.set_initial(yaw_rateScaled,0);
+CAB.set_initial(brake_pressureScaled,0);
+CAB.set_initial(wheel_rot_flScaled,initWheelVel);
+CAB.set_initial(wheel_rot_frScaled,initWheelVel);
+CAB.set_initial(wheel_rot_rlScaled,initWheelVel);
+CAB.set_initial(wheel_rot_rrScaled,initWheelVel);
 
-% Constraints
-BA.subject_to(-0.05<=ay_res<=0.05);
-BA.subject_to(-0.05<=ax_res<=0.05);
-BA.subject_to(-0.025<=brakeBias_res<=0.025);
-BA.subject_to(ay_out == 0);
+% steady state constraints
+CAB.subject_to(-0.05<=ay_res<=0.05);
+CAB.subject_to(-0.05<=ax_res<=0.05);
+if ax_target < -3
+    CAB.subject_to(-0.05<=ax_constraint_res<=0.05);
+else
+end
+CAB.subject_to(-0.025<=brakeBias_res<=0.025);
+CAB.subject_to(-5 <= Mz_out <= 5);
 
 % solve
-plugin_opts = struct('print_time',0);
-solver_opts = struct('print_level',0); % 'constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001,
-BA.solver('ipopt',plugin_opts,solver_opts);
-sol = BA.solve();
+% plugin_opts = struct('print_time',0);
+solver_opts = struct('constr_viol_tol',0.1,'acceptable_obj_change_tol',0.01);
+CAB.solver('ipopt');
+sol = CAB.solve();
 
-% extract results
-GGV.ay(end) = sol.value(ay_out);
-GGV.ax(end) = sol.value(ax_out);
+% % extract results
+% GGV.ay(index) = sol.value(ay_out);
+% GGV.ax(index) = sol.value(ax_out);
 
-end
+% Convergence Constraints
+rad2deg(CAB.debug.value(deltaScaled)* 30*pi/180)
+rad2deg(CAB.debug.value(betaScaled) *5*pi/180)
+CAB.debug.value(yaw_rateScaled)
+CAB.debug.value(brake_pressureScaled)
+CAB.debug.value(wheel_rot_flScaled)
+CAB.debug.value(wheel_rot_frScaled)
+CAB.debug.value(wheel_rot_rlScaled)
+CAB.debug.value(wheel_rot_rrScaled)
+
+% Convergence Constraints
+CAB.debug.value(ay_res)
+CAB.debug.value(ax_res)
+CAB.debug.value(Mz_out)
+CAB.debug.value(ax_constraint_res)
+CAB.debug.value(brakeBias_res)
+
+% States
+CAB.debug.value(ax_control)
+CAB.debug.value(ax_out)
+CAB.debug.value(ay_out)
+CAB.debug.value(ay_control)
+CAB.debug.value(brakeBias_res)
+
+% Internal States
+rad2deg(CAB.debug.value(alpha_fl))
+rad2deg(CAB.debug.value(alpha_fr))
+rad2deg(CAB.debug.value(alpha_rl))
+rad2deg(CAB.debug.value(alpha_rr))
+
+CAB.debug.value(kappa_fl)
+CAB.debug.value(kappa_fr)
+CAB.debug.value(kappa_rl)
+CAB.debug.value(kappa_rr)
+
+
+

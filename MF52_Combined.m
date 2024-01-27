@@ -33,8 +33,8 @@ LXAL    =   1;
 
 LKY     =   1; % 1
 LKX     =   1; %  0.7
-LMUY    =   0.38; % 0.38 Changed to Fit
-LMUX    =   0.35; % 0.25 Changed to Fit
+LMUY    =   0.6; % 0.38 Changed to Fit
+LMUX    =   0.6; % 0.25 Changed to Fit
 
 % Longitudinal Coefficients
 PCX1=1.2602;
@@ -52,6 +52,7 @@ PHX1=0.025058;
 PHX2=-0.038843;
 PVX1=-0.00045953;
 PVX2=0.0013401;
+
 % Combined Longitudinal Coefficients
 RBX1=7.4574;
 RBX2=-8.8044;
@@ -79,6 +80,7 @@ PVY1=0;
 PVY2=-0.009009;
 PVY3=-0.5;
 PVY4=-1;
+
 % Combined Lateral Coefficients
 RBY1=26.3099;
 RBY2=20.3304;
@@ -106,7 +108,6 @@ CY = PCY1.*LCY;
 MUY = (PDY1 + PDY2.*DFZ).*(1 - PDY3.*(GAMMAY.^2)).*LMUY;
 DY = MUY.*FZ;
 EY = (PEY1 + PEY2.*DFZ).*(1 - (PEY3 + PEY4.*GAMMAY).*sign(ALPHAY)).*LEY;
-
 KY0 = PKY1.*FZ0.*sin( 2.*atan(FZ./(PKY2.*FZ0PR))).*LKY; % Cornering Stiffness
 KVY0 = PHY3.*KY0 + FZ.*(PVY3 + PVY4.*DFZ); % Camber Stiffness
 KY = KY0.*(1 - PKY3.*abs(GAMMAY));
@@ -119,18 +120,13 @@ FY = FY0;
 BYK = RBY1.*cos(atan(RBY2.*(ALPHA - RBY3)));
 CYK = RCY1;
 EYK = REY1 + REY2.*DFZ;
-
 SHYK = RHY1 + RHY2.*DFZ; % This kills 
 KS = KAPPA + SHYK;
 DVYK = MUY.*FZ.*(RVY1 + RVY2.*DFZ + RVY3.*GAMMA).*cos(atan(RVY4.*ALPHA));
 SVYK = DVYK.*sin(RVY5.*atan(RVY6.*KAPPA));
 DYK = FY0./( cos(CYK.*atan(BYK.*SHYK - EYK.*(BYK.*SHYK - atan(BYK.*SHYK)))));
 GYK = ( cos(CYK.*atan( BYK.*KS - EYK.*(BYK.*KS - atan(BYK.*KS))))) ./ ( cos(CYK.*atan(BYK.*SHYK - EYK.*(BYK.*SHYK - atan(BYK.*SHYK)))));
-
 FY_C = GYK.*FY + SVYK;
-
-% FY = (DYK.*cos(CYK.*atan( BYK.*KS - EYK.*(BYK.*KS - atan(BYK.*KS))))) + SVYK;
-
 FY = FY_C;
 
 %% Longitudinal Code
@@ -158,5 +154,6 @@ EXAL = REX1 + REX2.*DFZ;
 GXAL = ( cos(CXAL.*atan(BXAL.*ALPHAS - EXAL.*(BXAL.*ALPHAS - atan(BXAL.*ALPHAS))))) ./ ( cos(CXAL.*atan(BXAL.*SHXAL - EXAL.*(BXAL.*SHXAL - atan(BXAL.*SHXAL)))));
 FX_C = GXAL.*FX0;
 FX = FX_C;
+
 end
 

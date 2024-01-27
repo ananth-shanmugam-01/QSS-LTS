@@ -6,7 +6,7 @@ function carData = initVehicleModel()
     g = 9.81;
     
     % Chassis Properties
-    carData.Chassis.mass = 274;
+    carData.Chassis.mass = 304;
     carData.Chassis.unsprungMass = 14.7;
     carData.Chassis.SprungMass = carData.Chassis.mass - 4*(carData.Chassis.unsprungMass);
     carData.Chassis.heightUnsprungCOG = 0.196;
@@ -26,7 +26,7 @@ function carData = initVehicleModel()
     % Aerodynamic Properties
     carData.Aero.CLA = 3.8;
     carData.Aero.CDA = 1.2;
-    carData.Aero.rAeroBalance = 0.55;
+    carData.Aero.rAeroBalance = 0.5;
     
     % Suspension Properties
     carData.Suspension.heightCG2rollAxis = 0.230;
@@ -41,7 +41,7 @@ function carData = initVehicleModel()
     carData.Brakes.diamPiston = 0.0254;
     carData.Brakes.areaPiston = (0.25*pi*carData.Brakes.diamPiston^2);
     carData.Brakes.radBrakeDisc = 0.1836/2;
-    carData.Brakes.rBrakeBias = 0.5;
+    carData.Brakes.rBrakeBias = 0.55;
     
     % Powertrain Model
     [carData.Powertrain.RPM, carData.Powertrain.torqueMotor] = powerCurveInterpolation('AMK_21Nm.txt');

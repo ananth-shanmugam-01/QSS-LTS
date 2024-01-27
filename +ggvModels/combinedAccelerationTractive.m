@@ -4,7 +4,7 @@
 
 function GGV = combinedAccelerationTractive(index, GGV, carData, velocity)
 
-%% initialize Problem
+% initialize Problem
 import casadi.*
 
 CAT = casadi.Opti();
@@ -13,15 +13,29 @@ CAT = casadi.Opti();
 Vx = velocity;
 
 % decision variables & box constraints
-delta = CAT.variable(); CAT.subject_to(-30*pi/180<=delta<=30*pi/180);                                                      % steering angle (rad)
-beta = CAT.variable(); CAT.subject_to(-5*pi/180<=beta<=5*pi/180);                                                          % sideslip angle (rad)
-yaw_rate = CAT.variable(); CAT.subject_to(-120*pi/180<=yaw_rate<=120*pi/180);                                                % yaw rate (rad/s)
-throttle_position = CAT.variable(); CAT.subject_to(0<=throttle_position<=1);                                               % throttle position (-)
-% brake_pressure = FA.variable(); FA.subject_to(0<=brake_pressure<=1);                                                     % brake pressure (bar)
-wheel_rot_fl = CAT.variable(); CAT.subject_to(0<=wheel_rot_fl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FL wheel angular velocity (rad/s)
-wheel_rot_fr = CAT.variable(); CAT.subject_to(0<=wheel_rot_fr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FR wheel angular velocity (rad/s)
-wheel_rot_rl = CAT.variable(); CAT.subject_to(0<=wheel_rot_rl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RL wheel angular velocity (rad/s)
-wheel_rot_rr = CAT.variable(); CAT.subject_to(0<=wheel_rot_rr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RR wheel angular velocity (rad/s)
+deltaScaled = CAT.variable();                CAT.subject_to(-1<=deltaScaled<=1);             % steering angle (rad)
+betaScaled = CAT.variable();                 CAT.subject_to(-1<=betaScaled<=1);                 % sideslip angle (rad)
+yaw_rateScaled = CAT.variable();             CAT.subject_to(-1<=yaw_rateScaled<=1);             % yaw rate (rad/s)
+throttle_positionScaled = CAT.variable();    CAT.subject_to(0<=throttle_positionScaled<=1);     % throttle position (-)
+% brake_pressureScaled = CAT.variable();           CAT.subject_to(0<=brake_pressureScaled<=1);              % brake pressure (bar)
+wheel_rot_flScaled = CAT.variable();         CAT.subject_to(0<=wheel_rot_flScaled<=1)           % FL wheel angular velocity (rad/s)
+wheel_rot_frScaled = CAT.variable();         CAT.subject_to(0<=wheel_rot_frScaled<=1)           % FR wheel angular velocity (rad/s)
+wheel_rot_rlScaled = CAT.variable();         CAT.subject_to(0<=wheel_rot_rlScaled<=1)           % RL wheel angular velocity (rad/s)
+wheel_rot_rrScaled = CAT.variable();         CAT.subject_to(0<=wheel_rot_rrScaled<=1)           % RR wheel angular velocity (rad/s)
+
+% Scaling for decision variables
+delta = deltaScaled * 30*pi/180;
+beta = betaScaled * 5*pi/180;
+yaw_rate = yaw_rateScaled * 120*pi/180;
+throttle_position = throttle_positionScaled;
+% brake_pressure = brake_pressureScaled * 100;
+wheel_rot_fl = wheel_rot_flScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
+wheel_rot_fr = wheel_rot_frScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
+wheel_rot_rl = wheel_rot_rlScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
+wheel_rot_rr = wheel_rot_rrScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
+
+% Initial Value for decision variables
+initWheelVel = (velocity/carData.Chassis.radWheel)/(carData.Powertrain.vMax/carData.Chassis.radWheel);
 
 %% Equations of Motion
 
@@ -44,7 +58,7 @@ F_tractive = throttle_position * carData.Powertrain.effPU * carData.Powertrain.n
 % Rear_Brake_Force = 2*(brake_pressure * 100 *(1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
 % F_brake = -(Front_Brake_Force + Rear_Brake_Force);
 
-ax_control = (F_tractive) / carData.Chassis.mass;
+ax_control = (F_tractive - Fd) / carData.Chassis.mass;
 
 % Slip Angles
 alpha_fl = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5)) - delta;
@@ -79,11 +93,18 @@ w_rr = (carData.Chassis.massRear * g / 2) - (del_w_r) + longLT + (DF_rear/2);
 [fy_rl, fx_rl] = MF52_Combined(kappa_rl,alpha_rl,w_rl,0);
 [fy_rr, fx_rr] = MF52_Combined(kappa_rr,alpha_rr,w_rr,0);
 
+torqueDistribution_tyre = (fx_fl + fx_fr) / (fx_fl + fx_fr + fx_rl + fx_rr);
+
 % Car States
 ay_out = (fy_fl + fy_fr + fy_rl + fy_rr)/carData.Chassis.mass;
-ax_out = (fx_fl + fx_fr + fx_rl + fx_rr - Fd)/carData.Chassis.mass;
+ax_out = (fx_fl + fx_fr + fx_rl + fx_rr)/carData.Chassis.mass;
 Mz_out = (carData.Chassis.frontMomentArm*(fy_fl + fy_fr) + 0.5*carData.Chassis.trackWidth*(fx_fl + fx_rl) ...
           - carData.Chassis.rearMomentArm*(fy_rl + fy_rr) - 0.5*carData.Chassis.trackWidth*(fx_fr + fx_rr))/carData.Chassis.yawInertia;
+
+% Residuals
+ax_res = ax_control - ax_out;
+ay_res = ay_control - ay_out;
+% torqueDist_res = carData.Powertrain.torqueDistribution - torqueDistribution_tyre;
 
 % Path Constraints
 
@@ -96,7 +117,6 @@ CAT.subject_to(-0.1<=kappa_fl<=0.1);
 CAT.subject_to(-0.1<=kappa_fr<=0.1);
 CAT.subject_to(-0.1<=kappa_rl<=0.1);
 CAT.subject_to(-0.1<=kappa_rr<=0.1);
-
             
 % objective
 CAT.minimize(-ay_out);
@@ -107,24 +127,24 @@ CAT.set_initial(beta,0);
 CAT.set_initial(yaw_rate,0);
 CAT.set_initial(throttle_position,1);
 
-CAT.set_initial(wheel_rot_fl,velocity/carData.Chassis.radWheel);
-CAT.set_initial(wheel_rot_fr,velocity/carData.Chassis.radWheel);
-CAT.set_initial(wheel_rot_rl,velocity/carData.Chassis.radWheel);
-CAT.set_initial(wheel_rot_rr,velocity/carData.Chassis.radWheel);
+CAT.set_initial(wheel_rot_fl,initWheelVel);
+CAT.set_initial(wheel_rot_fr,initWheelVel);
+CAT.set_initial(wheel_rot_rl,initWheelVel);
+CAT.set_initial(wheel_rot_rr,initWheelVel);
 
 % steady state constraints
-CAT.subject_to(ay_out == ay_control);
-CAT.subject_to(ax_out == ax_control);
+CAT.subject_to(-0.1<=ay_res<=0.1);
+CAT.subject_to(-0.1<=ax_res<=0.1);
+CAT.subject_to(-5 <= Mz_out <= 5);
 CAT.subject_to(kappa_fl == 0);
 CAT.subject_to(kappa_fr == 0);
-CAT.subject_to(-10 <= Mz_out <= 10);
 
 % longitudinal acceleration constraint     
 CAT.subject_to(ax_out == GGV.ax(index));
 
 % solve
 plugin_opts = struct('print_time',0);
-solver_opts = struct('constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001,'print_level',0);
+solver_opts = struct('print_level',0); % 'constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001,
 CAT.solver('ipopt',plugin_opts,solver_opts);
 sol = CAT.solve();
 

@@ -1,5 +1,4 @@
 %% GGV Calc
-
 function [GGV_surf, GGVComplete, GGVAcceleration, GGVDeceleration] = runGGV(velocitySteps, axSteps, carData)
 
     startTimer = tic;

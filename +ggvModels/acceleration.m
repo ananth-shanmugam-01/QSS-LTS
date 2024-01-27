@@ -3,7 +3,7 @@
 % Reference - Mario Boxheimer 
 function GGV = acceleration(GGV, carData,velocity)
 
-%% initialize Problem
+% initialize Problem
 import casadi.*
 
 FA = casadi.Opti();
@@ -12,15 +12,30 @@ FA = casadi.Opti();
 Vx = velocity;
 
 % decision variables & box constraints
-delta = FA.variable(); FA.subject_to(-30*pi/180<=delta<=30*pi/180);                                                      % steering angle (rad)
-beta = FA.variable(); FA.subject_to(-5*pi/180<=beta<=5*pi/180);                                                          % sideslip angle (rad)
-yaw_rate = FA.variable(); FA.subject_to(-120*pi/180<=yaw_rate<=120*pi/180);                                                % yaw rate (rad/s)
-throttle_position = FA.variable(); FA.subject_to(0<=throttle_position<=1);                                               % throttle position (-)
-% brake_pressure = FA.variable(); FA.subject_to(0<=brake_pressure<=1);                                                     % brake pressure (bar)
-wheel_rot_fl = FA.variable(); FA.subject_to(0<=wheel_rot_fl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FL wheel angular velocity (rad/s)
-wheel_rot_fr = FA.variable(); FA.subject_to(0<=wheel_rot_fr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FR wheel angular velocity (rad/s)
-wheel_rot_rl = FA.variable(); FA.subject_to(0<=wheel_rot_rl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RL wheel angular velocity (rad/s)
-wheel_rot_rr = FA.variable(); FA.subject_to(0<=wheel_rot_rr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RR wheel angular velocity (rad/s)
+deltaScaled = FA.variable();                FA.subject_to(-1<=deltaScaled<=1);             % steering angle (rad)
+betaScaled = FA.variable();                 FA.subject_to(-1<=betaScaled<=1);                 % sideslip angle (rad)
+yaw_rateScaled = FA.variable();             FA.subject_to(-1<=yaw_rateScaled<=1);             % yaw rate (rad/s)
+throttle_positionScaled = FA.variable();    FA.subject_to(0<=throttle_positionScaled<=1);     % throttle position (-)
+% brake_pressureScaled = FA.variable();           FA.subject_to(0<=brake_pressureScaled<=1);              % brake pressure (bar)
+wheel_rot_flScaled = FA.variable();         FA.subject_to(0<=wheel_rot_flScaled<=1)           % FL wheel angular velocity (rad/s)
+wheel_rot_frScaled = FA.variable();         FA.subject_to(0<=wheel_rot_frScaled<=1)           % FR wheel angular velocity (rad/s)
+wheel_rot_rlScaled = FA.variable();         FA.subject_to(0<=wheel_rot_rlScaled<=1)           % RL wheel angular velocity (rad/s)
+wheel_rot_rrScaled = FA.variable();         FA.subject_to(0<=wheel_rot_rrScaled<=1)           % RR wheel angular velocity (rad/s)
+
+% Scaling for decision variables
+delta = deltaScaled * 30*pi/180;
+beta = betaScaled * 5*pi/180;
+yaw_rate = yaw_rateScaled * 120*pi/180;
+throttle_position = throttle_positionScaled;
+% brake_pressure = brake_pressureScaled * 100;
+wheel_rot_fl = wheel_rot_flScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
+wheel_rot_fr = wheel_rot_frScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
+wheel_rot_rl = wheel_rot_rlScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
+wheel_rot_rr = wheel_rot_rrScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
+
+% Initial Value for decision variables
+initWheelVel = (velocity/carData.Chassis.radWheel)/(carData.Powertrain.vMax/carData.Chassis.radWheel);
+
 
 %% Equations of Motion
 
@@ -84,6 +99,10 @@ ax_out = (fx_fl + fx_fr + fx_rl + fx_rr)/carData.Chassis.mass;
 Mz_out = (carData.Chassis.frontMomentArm*(fy_fl + fy_fr) + 0.5*carData.Chassis.trackWidth*(fx_fl + fx_rl) ...
           - carData.Chassis.rearMomentArm*(fy_rl + fy_rr) - 0.5*carData.Chassis.trackWidth*(fx_fr + fx_rr))/carData.Chassis.yawInertia;
 
+% Residuals
+ax_res = ax_control - ax_out;
+ay_res = ay_control - ay_out;
+
 % Path Constraints
 
 FA.subject_to(-12*pi/180<=alpha_fl<=12*pi/180);
@@ -100,24 +119,24 @@ FA.subject_to(-0.1<=kappa_rr<=0.1);
 FA.minimize(-ax_out);
 
 % initialization of decision variables
-FA.set_initial(delta,0);
-FA.set_initial(beta,0);
-FA.set_initial(yaw_rate,0);
-FA.set_initial(throttle_position,1);
-FA.set_initial(wheel_rot_fl,velocity/carData.Chassis.radWheel);
-FA.set_initial(wheel_rot_fr,velocity/carData.Chassis.radWheel);
-FA.set_initial(wheel_rot_rl,velocity/carData.Chassis.radWheel);
-FA.set_initial(wheel_rot_rr,velocity/carData.Chassis.radWheel);
+FA.set_initial(deltaScaled,0);
+FA.set_initial(betaScaled,0);
+FA.set_initial(yaw_rateScaled,0);
+FA.set_initial(throttle_positionScaled,1);
+FA.set_initial(wheel_rot_flScaled,initWheelVel);
+FA.set_initial(wheel_rot_frScaled,initWheelVel);
+FA.set_initial(wheel_rot_rlScaled,initWheelVel);
+FA.set_initial(wheel_rot_rrScaled,initWheelVel);
 
 % Constraints
-FA.subject_to(ay_out == ay_control);
-FA.subject_to(ax_out == ax_control);
+FA.subject_to(-0.1<=ay_res<=0.1);
+FA.subject_to(-0.1<=ax_res<=0.1);
 FA.subject_to(ay_out == 0);
 FA.subject_to(kappa_fl == 0);
 FA.subject_to(kappa_fr == 0);
 
 plugin_opts = struct('print_time',0);
-solver_opts = struct('constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001,'print_level',0);
+solver_opts = struct('print_level',0); % 'constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001,
 FA.solver('ipopt',plugin_opts,solver_opts);
 sol = FA.solve();
 
