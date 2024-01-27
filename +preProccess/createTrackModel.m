@@ -1,5 +1,14 @@
-function [trackDist, curvatureSpline] = trackModel(fileName,sector_dist)
+function [TrackData] = createTrackModel(fileName,trackName,source)
 
+    TrackData = struct;
+    TrackData.Name = trackName;
+    TrackData.source = source;
+
+    % Allow to choose calculation type
+
+    % switch type
+
+    % case GPS
     rawData = load(fileName);
     time = rawData.data_lap2.t;
     measVelocity = rawData.data_lap2.Chassis_Speed_mps;
@@ -17,6 +26,9 @@ function [trackDist, curvatureSpline] = trackModel(fileName,sector_dist)
     plot(dist,kt,'DisplayName','GPS')
     plot(trackDist,curvatureSpline,'DisplayName','Interp')
     hold off
+
+    % case Lateral Acceleration
+    
     
     function [kt, calcSpeed, dist] = GPScurvature(latData,longData,altData,time)
     

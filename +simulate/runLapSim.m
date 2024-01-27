@@ -1,16 +1,8 @@
-function outputs = runLapSim(GGVComplete, GGVAcceleration, GGVDeceleration, trackDistance, trackCurvature, sectorDistance)
+function outputs = runLapSim(carData, GGVComplete, GGVAcceleration, GGVDeceleration, trackDistance, trackCurvature, sectorDistance)
 
-    tic
+    startTimer = tic;
     
-    % LSP Calculations
-    posAyIdx = find(GGVAcceleration(:,2) >= 0);
-    
-    maxAccelerationGGV= struct;
-    maxAccelerationGGV.kt = GGVAcceleration(posAyIdx,2)./(GGVAcceleration(posAyIdx,1).^2);
-    maxAccelerationGGV.Vel = GGVAcceleration(posAyIdx,1);
-    maxAccelerationGGV.Ax = GGVAcceleration(posAyIdx,3);
-    maxAccelerationGGV.Ay = GGVAcceleration(posAyIdx,2);
-    
+    % LSP Calculations    
     velRange = unique(GGVComplete(:,1));
     for i = 1:numel(velRange)
         idx = find(GGVComplete(:,1) == velRange(i));
@@ -19,11 +11,21 @@ function outputs = runLapSim(GGVComplete, GGVAcceleration, GGVDeceleration, trac
         LSP.vel(i) = velRange(i);
     end
     
-    ktInterp = linspace(min(LSP.ktMax),max(LSP.ktMax),10000);
+    ktInterp = linspace(min(LSP.ktMax),max(LSP.ktMax),100);
     cornerVelInterp = griddedInterpolant(flip(sort(LSP.ktMax,'descend')),flip(LSP.vel),'linear','linear');
     
-    maxAccelerationInterp = scatteredInterpolant(maxAccelerationGGV.Vel, maxAccelerationGGV.Ay, maxAccelerationGGV.Ax,'linear','nearest');
+    % Forward Velocity Profile
+    posAyIdx = find(GGVAcceleration(:,2) >= 0);
     
+    maxAccelerationGGV= struct;
+    maxAccelerationGGV.kt = GGVAcceleration(posAyIdx,2)./(GGVAcceleration(posAyIdx,1).^2);
+    maxAccelerationGGV.Vel = GGVAcceleration(posAyIdx,1);
+    maxAccelerationGGV.Ax = GGVAcceleration(posAyIdx,3);
+    maxAccelerationGGV.Ay = GGVAcceleration(posAyIdx,2);
+    
+    maxAccelerationInterp = scatteredInterpolant(maxAccelerationGGV.Vel, maxAccelerationGGV.Ay, maxAccelerationGGV.Ax,'linear','linear');
+    
+    % Reverse Velocity Profile
     posAyIdx = find(GGVDeceleration(:,2) >= 0);
     maxDecelerationGGV= struct;
     maxDecelerationGGV.Vel = GGVDeceleration(posAyIdx,1);
@@ -31,6 +33,7 @@ function outputs = runLapSim(GGVComplete, GGVAcceleration, GGVDeceleration, trac
     maxDecelerationGGV.Ay = GGVDeceleration(posAyIdx,2);
     
     maxDecelerationInterp = scatteredInterpolant(maxDecelerationGGV.Vel, maxDecelerationGGV.Ay, maxDecelerationGGV.Ax,'linear','linear');
+
     
     %% Interpolation Testing
     
@@ -130,6 +133,10 @@ function outputs = runLapSim(GGVComplete, GGVAcceleration, GGVDeceleration, trac
     outputs.vCar = finalVel;
     outputs.gLat = finalAy;
     outputs.gLong = finalAx;
+
+    stopTimer = toc(startTimer);
+
+    disp(['Lap Time Simulation Complete. Time taken: ', num2str(stopTimer), '(s)'])
 
 end
 

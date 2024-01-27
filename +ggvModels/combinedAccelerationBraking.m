@@ -2,8 +2,9 @@
 % CasADi Problem Formulation of Vehicle Model
 % Reference - Mario Boxheimer 
 
+function GGV = combinedAccelerationBraking(index, GGV, carData, velocity)
 
-%% initialize Problem
+% initialize Problem
 import casadi.*
 
 CAB = casadi.Opti();
@@ -95,3 +96,37 @@ CAB.subject_to(-0.1<=kappa_fl<=0.1);
 CAB.subject_to(-0.1<=kappa_fr<=0.1);
 CAB.subject_to(-0.1<=kappa_rl<=0.1);
 CAB.subject_to(-0.1<=kappa_rr<=0.1);
+
+% objective
+CAB.minimize(-ay_out);
+
+% initialization of decision variables
+CAB.set_initial(delta,0);
+CAB.set_initial(beta,0);
+CAB.set_initial(yaw_rate,0);
+
+CAB.set_initial(brake_pressure,0);
+CAB.set_initial(wheel_rot_fl,velocity/carData.Chassis.radWheel);
+CAB.set_initial(wheel_rot_fr,velocity/carData.Chassis.radWheel);
+CAB.set_initial(wheel_rot_rl,velocity/carData.Chassis.radWheel);
+CAB.set_initial(wheel_rot_rr,velocity/carData.Chassis.radWheel);
+
+% steady state constraints
+CAB.subject_to(ay_out == ay_control);
+CAB.subject_to(ax_out == ax_control);
+CAB.subject_to(-10 <= Mz_out <= 10);
+
+% longitudinal acceleration constraint     
+CAB.subject_to(ax_out == GGV.ax(index));
+
+% solve
+plugin_opts = struct('print_time',0);
+solver_opts = struct('constr_viol_tol',0.1,'acceptable_obj_change_tol',0.01,'print_level',0);
+CAB.solver('ipopt',plugin_opts,solver_opts);
+sol = CAB.solve();
+
+% extract results
+GGV.ay(index) = sol.value(ay_out);
+GGV.ax(index) = sol.value(ax_out);
+
+end

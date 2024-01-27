@@ -2,6 +2,7 @@
 % CasADi Problem Formulation of Vehicle Model
 % Reference - Mario Boxheimer 
 
+function GGV = combinedAccelerationTractive(index, GGV, carData, velocity)
 
 %% initialize Problem
 import casadi.*
@@ -95,3 +96,40 @@ CAT.subject_to(-0.1<=kappa_fl<=0.1);
 CAT.subject_to(-0.1<=kappa_fr<=0.1);
 CAT.subject_to(-0.1<=kappa_rl<=0.1);
 CAT.subject_to(-0.1<=kappa_rr<=0.1);
+
+            
+% objective
+CAT.minimize(-ay_out);
+
+% initialization of decision variables
+CAT.set_initial(delta,0);
+CAT.set_initial(beta,0);
+CAT.set_initial(yaw_rate,0);
+CAT.set_initial(throttle_position,1);
+
+CAT.set_initial(wheel_rot_fl,velocity/carData.Chassis.radWheel);
+CAT.set_initial(wheel_rot_fr,velocity/carData.Chassis.radWheel);
+CAT.set_initial(wheel_rot_rl,velocity/carData.Chassis.radWheel);
+CAT.set_initial(wheel_rot_rr,velocity/carData.Chassis.radWheel);
+
+% steady state constraints
+CAT.subject_to(ay_out == ay_control);
+CAT.subject_to(ax_out == ax_control);
+CAT.subject_to(kappa_fl == 0);
+CAT.subject_to(kappa_fr == 0);
+CAT.subject_to(-10 <= Mz_out <= 10);
+
+% longitudinal acceleration constraint     
+CAT.subject_to(ax_out == GGV.ax(index));
+
+% solve
+plugin_opts = struct('print_time',0);
+solver_opts = struct('constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001,'print_level',0);
+CAT.solver('ipopt',plugin_opts,solver_opts);
+sol = CAT.solve();
+
+% extract results
+GGV.ay(index) = sol.value(ay_out);
+GGV.ax(index) = sol.value(ax_out);
+
+end

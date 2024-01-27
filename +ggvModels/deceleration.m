@@ -2,6 +2,7 @@
 % CasADi Problem Formulation of Vehicle Model
 % Reference - Mario Boxheimer 
 
+function GGV = deceleration(GGV,carData,velocity)
 
 %% initialize Problem
 import casadi.*
@@ -95,3 +96,33 @@ BA.subject_to(-0.1<=kappa_fl<=0.1);
 BA.subject_to(-0.1<=kappa_fr<=0.1);
 BA.subject_to(-0.1<=kappa_rl<=0.1);
 BA.subject_to(-0.1<=kappa_rr<=0.1);
+
+% objective
+BA.minimize(ax_out);
+
+% initialization of decision variables
+BA.set_initial(delta,0);
+BA.set_initial(beta,0);
+BA.set_initial(yaw_rate,0);
+BA.set_initial(brake_pressure,0);
+BA.set_initial(wheel_rot_fl,velocity/carData.Chassis.radWheel);
+BA.set_initial(wheel_rot_fr,velocity/carData.Chassis.radWheel);
+BA.set_initial(wheel_rot_rl,velocity/carData.Chassis.radWheel);
+BA.set_initial(wheel_rot_rr,velocity/carData.Chassis.radWheel);
+
+% Constraints
+BA.subject_to(ay_out == ay_control);
+BA.subject_to(ax_out == ax_control);
+BA.subject_to(ay_out == 0);
+
+% solve
+plugin_opts = struct('print_time',0);
+solver_opts = struct('constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001,'print_level',0);
+BA.solver('ipopt',plugin_opts,solver_opts);
+sol = BA.solve();
+
+% extract results
+GGV.ay(end) = sol.value(ay_out);
+GGV.ax(end) = sol.value(ax_out);
+
+end
