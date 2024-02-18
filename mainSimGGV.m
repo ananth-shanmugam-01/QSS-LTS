@@ -13,37 +13,37 @@ carData = preProccess.initVehicleModel();
 %% Single Lap Simulation
 
 % run GGV Calculation
-[GGV_surf, GGVComplete, GGVAcceleration, GGVDeceleration] = simulate.runGGV(10, 10, carData);
+[GGV_surf, GGVresults] = simulate.runGGV(10, 10, carData);
 
-% run lap simulation 
+%% run lap simulation 
 
-outputs = simulate.runLapSim(carData, GGVComplete, GGVAcceleration, GGVDeceleration, trackDistance, trackCurvature, sectorDistance);
+outputs = simulate.runLapSim(GGVresults, trackDistance, trackCurvature, sectorDistance);
 
 disp(['Lap Time: ', num2str(outputs.time(end)), '(s)'])
 
 %% Parameter Updates / Sweeps
 
-% sweepRange = [0.4, 0.45, 0.5, 0.55, 0.6];
-% results = [];
-% 
-% for i = 1:numel(sweepRange)
-% 
-%     carData.Brakes.rBrakeBias = sweepRange(i);
-% 
-%     % run GGV Calculation
-%     [GGV_surf, GGVComplete, GGVAcceleration, GGVDeceleration] = simulate.runGGV(10, 10, carData);
-%     
-%     % run lap simulation 
-%     
-%     outputs = simulate.runLapSim(carData, GGVComplete, GGVAcceleration, GGVDeceleration, trackDistance, trackCurvature, sectorDistance);
-%     
-%     disp(['Lap Time: ', num2str(outputs.time(end)), '(s)'])
-% 
-%     results(i,1) = sweepRange(i);
-%     results(i,2) = outputs.time(end);
-%     disp(['Sweep Point-', num2str(i),'/',num2str(numel(sweepRange)),' Completed'])
-% 
-% end
+sweepRange = [0.20, 0.24, 0.28, 0.32, 0.36];
+results = [];
+
+for i = 1:numel(sweepRange)
+
+    carData.Chassis.heightSprungCOG = sweepRange(i);
+
+    % run GGV Calculation
+    [GGV_surf, GGVresults] = simulate.runGGV(10, 10, carData);
+    
+    % run lap simulation 
+    
+    outputs = simulate.runLapSim(GGVresults, trackDistance, trackCurvature, sectorDistance);
+    
+    disp(['Lap Time: ', num2str(outputs.time(end)), '(s)'])
+
+    results(i,1) = sweepRange(i);
+    results(i,2) = outputs.time(end);
+    disp(['Sweep Point-', num2str(i),'/',num2str(numel(sweepRange)),' Completed'])
+
+end
 
 %% post-process outputs
 
@@ -85,6 +85,7 @@ scatter3(outputs.gLat, outputs.gLong, outputs.vCar,'ro')
 hold off
 title('GGV Diagram')
 
+%%
 
 
 

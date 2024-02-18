@@ -61,10 +61,10 @@ F_brake = -(Front_Brake_Force + Rear_Brake_Force);
 ax_control = (F_brake - Fd) / carData.Chassis.mass;
 
 % Slip Angles
-alpha_fl = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5)) - delta;
-alpha_fr = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5)) - delta;
-alpha_rl = (Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5);
-alpha_rr = (Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5);
+alpha_fl = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5)) - (delta - carData.Suspension.aToeStaticFront*pi/180); % [deg], negative is toe inwards, wheel pointing inwards to chassis
+alpha_fr = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5)) - (delta + carData.Suspension.aToeStaticFront*pi/180);
+alpha_rl = ((Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5))  - (-carData.Suspension.aToeStaticRear*pi/180); % [deg], negative is toe inwards, wheel pointing inwards to chassis
+alpha_rr = ((Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5))  - (carData.Suspension.aToeStaticRear*pi/180);
 
 % Slip Ratios
 kappa_fl = (wheel_rot_fl*carData.Chassis.radWheel - Vx)/Vx;
@@ -88,10 +88,10 @@ w_rl = (carData.Chassis.massRear * g / 2) + (del_w_r) + longLT + (DF_rear/2);
 w_rr = (carData.Chassis.massRear * g / 2) - (del_w_r) + longLT + (DF_rear/2);
 
 % Wheel Forces
-[fy_fl, fx_fl] = MF52_Combined(kappa_fl,alpha_fl,w_fl,0);
-[fy_fr, fx_fr] = MF52_Combined(kappa_fr,alpha_fr,w_fr,0);
-[fy_rl, fx_rl] = MF52_Combined(kappa_rl,alpha_rl,w_rl,0);
-[fy_rr, fx_rr] = MF52_Combined(kappa_rr,alpha_rr,w_rr,0);
+[fy_fl, fx_fl] = tyreModel.MF52(kappa_fl,alpha_fl,w_fl,carData.Suspension.aCamberFront, carData);
+[fy_fr, fx_fr] = tyreModel.MF52(kappa_fr,alpha_fr,w_fr,-carData.Suspension.aCamberFront, carData);
+[fy_rl, fx_rl] = tyreModel.MF52(kappa_rl,alpha_rl,w_rl,carData.Suspension.aCamberRear, carData);
+[fy_rr, fx_rr] = tyreModel.MF52(kappa_rr,alpha_rr,w_rr,-carData.Suspension.aCamberRear, carData);
 
 brakeBias_tyre = (fx_fl + fx_fr) / (fx_fl + fx_fr + fx_rl + fx_rr);
 
@@ -114,10 +114,10 @@ CAB.subject_to(-12*pi/180<=alpha_fr<=12*pi/180);
 CAB.subject_to(-12*pi/180<=alpha_rl<=12*pi/180);
 CAB.subject_to(-12*pi/180<=alpha_rr<=12*pi/180);
 
-CAB.subject_to(-0.10<=kappa_fl<=0.10);
-CAB.subject_to(-0.10<=kappa_fr<=0.10);
-CAB.subject_to(-0.10<=kappa_rl<=0.10);
-CAB.subject_to(-0.10<=kappa_rr<=0.10);
+CAB.subject_to(-0.10<=kappa_fl<=0);
+CAB.subject_to(-0.10<=kappa_fr<=0);
+CAB.subject_to(-0.10<=kappa_rl<=0);
+CAB.subject_to(-0.10<=kappa_rr<=0);
 
 % objective
 CAB.minimize(-ay_out);
@@ -132,24 +132,37 @@ CAB.set_initial(wheel_rot_frScaled,initWheelVel);
 CAB.set_initial(wheel_rot_rlScaled,initWheelVel);
 CAB.set_initial(wheel_rot_rrScaled,initWheelVel);
 
-% steady state constraints
-CAB.subject_to(-0.05<=ay_res<=0.05);
-CAB.subject_to(-0.05<=ax_res<=0.05);
-if GGV.ax(index) < -3
-    CAB.subject_to(-0.05<=ax_constraint_res<=0.05);
-else
+try
+    % steady state constraints
+    CAB.subject_to(-0.05<=ay_res<=0.05);
+    CAB.subject_to(-0.05<=ax_res<=0.05);
+    if GGV.ax(index) < -3
+        CAB.subject_to(-0.05<=ax_constraint_res<=0.05);
+    else
+    end
+    CAB.subject_to(-0.025<=brakeBias_res<=0.025);
+    CAB.subject_to(-5 <= Mz_out <= 5);
+    
+    % solve
+    plugin_opts = struct('print_time',0);
+    solver_opts = struct('print_level',0); % 'constr_viol_tol',0.1,'acceptable_obj_change_tol',0.01,
+    CAB.solver('ipopt',plugin_opts,solver_opts);
+    sol = CAB.solve();
+
+    % extract results
+    GGV.ay(index)           = sol.value(ay_out);
+    GGV.ax(index)           = sol.value(ax_out);
+    GGV.delta(index)        = sol.value(delta);
+    GGV.beta(index)         = sol.value(beta);
+    GGV.yaw_rate(index)     = sol.value(yaw_rate);
+    GGV.wheel_rot_fl(index) = sol.value(wheel_rot_fl);
+    GGV.wheel_rot_fr(index) = sol.value(wheel_rot_fr);
+    GGV.wheel_rot_rl(index) = sol.value(wheel_rot_rl);
+    GGV.wheel_rot_rr(index) = sol.value(wheel_rot_rr);
+
+catch 
+    disp(['Iteration Failed; ', 'Velocity: ', num2str(Vx), '; ', 'Ax Target: ', num2str(GGV.ax(index))])
 end
-CAB.subject_to(-0.025<=brakeBias_res<=0.025);
-CAB.subject_to(-5 <= Mz_out <= 5);
 
-% solve
-plugin_opts = struct('print_time',0);
-solver_opts = struct('print_level',0); % 'constr_viol_tol',0.1,'acceptable_obj_change_tol',0.01,
-CAB.solver('ipopt',plugin_opts,solver_opts);
-sol = CAB.solve();
-
-% extract results
-GGV.ay(index) = sol.value(ay_out);
-GGV.ax(index) = sol.value(ax_out);
 
 end

@@ -1,7 +1,11 @@
-function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDistance)
+    clear; clc;    
 
-    startTimer = tic;
-    
+% Load Track Parameterisation
+    sectorDistance = 1;
+    [trackDistance, trackCurvature] = preProccess.loadTrackModel('FSUK_2016.mat', sectorDistance);
+
+    load("GGVresults.mat")
+
     % LSP Calculations    
     velRange = unique(GGVresults.vel);
     for i = 1:numel(velRange)
@@ -17,12 +21,31 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
     % Forward Velocity Profile
     posAyIdx = GGVresults.Ay >= 0 & GGVresults.Ax >= 0;   
     maxAccelerationInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx),'linear','linear');
-   
+    
+    posAyIdx = GGVresults.Ax >= 0;   
+    AccelerationDeltaInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.delta(posAyIdx),'linear','linear');
+    AccelerationBeltaInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.beta(posAyIdx),'linear','linear');
+    AccelerationYawRateInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.yaw_rate(posAyIdx),'linear','linear');
+    AccelerationWheelRotFlInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.wheel_rot_fl(posAyIdx),'linear','linear');
+    AccelerationWheelRotFRInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.wheel_rot_fr(posAyIdx),'linear','linear');
+    AccelerationWheelRotRlInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.wheel_rot_rl(posAyIdx),'linear','linear');
+    AccelerationWheelRotRRInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.wheel_rot_rr(posAyIdx),'linear','linear');
+    
     % Reverse Velocity Profile
     posAyIdx = GGVresults.Ay >= 0 & GGVresults.Ax <= 0;    
     maxDecelerationInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx),'linear','linear');
-   
-    %% Interpolation Testing
+    
+    posAyIdx = GGVresults.Ax <= 0;
+    DecelerationDeltaInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.delta(posAyIdx),'linear','linear');
+    DecelerationBeltaInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.beta(posAyIdx),'linear','linear');
+    DecelerationYawRateInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.yaw_rate(posAyIdx),'linear','linear');
+    DecelerationWheelRotFlInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.wheel_rot_fl(posAyIdx),'linear','linear');
+    DecelerationWheelRotFRInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.wheel_rot_fr(posAyIdx),'linear','linear');
+    DecelerationWheelRotRlInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.wheel_rot_rl(posAyIdx),'linear','linear');
+    DecelerationWheelRotRRInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GGVresults.Ay(posAyIdx), GGVresults.Ax(posAyIdx), GGVresults.wheel_rot_rr(posAyIdx),'linear','linear');
+
+    
+    % Interpolation Testing
     
     range = 0.3:-0.001:0.001;
     velInterp = zeros(numel(range),1);
@@ -37,7 +60,7 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
 %     plot(range, velInterp)
 %     hold off
     
-    %% Limit Speed Calculation
+    % Limit Speed Calculation
     
     maxCornerVel = zeros(numel(trackCurvature),1);
     for i = 1:numel(trackCurvature)
@@ -45,7 +68,7 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
         maxCornerVel(i) = max(maxCornerVel(i),5);
     end
     
-    %% Forward Speed Calculation
+    % Forward Speed Calculation
     
     % Identify Apices
     [val, locs] = findpeaks(-maxCornerVel,"MinPeakDistance",6);
@@ -79,7 +102,7 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
     
     end 
     
-    %% Braking Speed Calculation
+    % Braking Speed Calculation
     brakeVel = zeros(length(trackCurvature),1);
     
     brakeVel(locs(end)) = maxCornerVel(locs(end));
@@ -100,7 +123,7 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
         brakeVel(i) = maxCornerVel(i); 
     end 
     
-    %% Final Velocity Profile
+    % Final Velocity Profile
     
     finalVel = min([maxCornerVel';forwardVel';brakeVel'])';
     lapTime = sum(sectorDistance./finalVel);
@@ -120,11 +143,18 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
     outputs.vCar = finalVel;
     outputs.gLat = finalAy;
     outputs.gLong = finalAx;
-    outputs.yawRate = finalAy./finalVel;
 
-    stopTimer = toc(startTimer);
+    %%
+    test = zeros(numel(finalAy),1);
 
-    disp(['Lap Time Simulation Complete. Time taken: ', num2str(stopTimer), '(s)'])
+    test(finalVel == forwardVel) =  AccelerationDeltaInterp(finalVel(finalVel==forwardVel),finalAy(finalVel==forwardVel),finalAx(finalVel==forwardVel));
+    test(finalVel == maxCornerVel) =  AccelerationDeltaInterp(finalVel(finalVel == maxCornerVel),finalAy(finalVel == maxCornerVel),finalAx(finalVel == maxCornerVel));
+    test(finalVel == brakeVel) =  DecelerationDeltaInterp(finalVel(finalVel == brakeVel),finalAy(finalVel == brakeVel),finalAx(finalVel == brakeVel));
 
-end
+
+    figure
+    yyaxis left
+    plot(test)
+    yyaxis right
+    plot(finalAy)
 

@@ -9,7 +9,11 @@ end
 
 carData.Chassis.radWheel = 0.196; % Loaded radius
 
-vMaxWheel = (torqueData.RPM(end)*2*pi/60)/(powertrain.primaryRatio * powertrain.finalDriveRatio * powertrain.gearRatio5);
+% vMaxWheel = (torqueData.RPM(end)*2*pi/60)/(powertrain.primaryRatio * powertrain.finalDriveRatio * powertrain.gearRatio5);
+
+wheelRotMax = torqueData.RPM(end)/(powertrain.primaryRatio * powertrain.finalDriveRatio * powertrain.gearRatio5); % [rpm]
+wheelRotMax = wheelRotMax*2*pi/60; % [rad/s]
+vMaxWheel = wheelRotMax* carData.Chassis.radWheel; % [m/s]
 
 %% Wheel Velocity Range
 

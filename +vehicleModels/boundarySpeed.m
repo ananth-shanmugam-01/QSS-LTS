@@ -2,8 +2,9 @@
 % CasADi Problem Formulation of Vehicle Model
 % Reference - Mario Boxheimer 
 
+function LSP = boundarySpeed(i, LSP, curvature, carData)
 
-%% initialize Problem
+% initialize Problem
 import casadi.*
 
 nlpBSP = casadi.Opti();
@@ -20,7 +21,7 @@ betaMax = 3;
 Vx = nlpBSP.variable(); nlpBSP.subject_to(0<=Vx<=carData.Powertrain.vMax);
 delta = nlpBSP.variable(); nlpBSP.subject_to(deltaMin*pi/180<=delta<=deltaMax*pi/180);                                           % steering angle (rad)
 beta = nlpBSP.variable(); nlpBSP.subject_to(betaMin*pi/180<=beta<=betaMax*pi/180);                                               % sideslip angle (rad)
-yaw_rate = nlpBSP.variable(); nlpBSP.subject_to(-120*pi/180<=yaw_rate<=120*pi/180);                                                % yaw rate (rad/s)
+% yaw_rate = nlpBSP.variable(); nlpBSP.subject_to(-120*pi/180<=yaw_rate<=120*pi/180);                                                % yaw rate (rad/s)
 % throttle_position = nlp.variable(); nlp.subject_to(0<=throttle_position<=1);                                               % throttle position (-)
 % brake_pressure = nlp.variable(); nlp.subject_to(0<=brake_pressure<=1);                                                     % brake pressure (bar)
 wheel_rot_fl = nlpBSP.variable(); nlpBSP.subject_to(0<=wheel_rot_fl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FL wheel angular velocity (rad/s)
@@ -37,7 +38,7 @@ DF_rear = (1-carData.Aero.rAeroBalance)*DF_front;
 Fd = 0.5*1.225*carData.Aero.CDA*Vx^2;
 
 ay_control = Kt * Vx^2;
-% yaw_rate = Kt * Vx;
+yaw_rate = Kt * Vx;
 
 % Motor Tractive Force
 % torqueInterp = interpolant('LUT','bspline',{[carData.Powertrain.RPM]},carData.Powertrain.torqueMotor); % CasADi feature
@@ -55,10 +56,10 @@ ay_control = Kt * Vx^2;
 ax_control = 0;
 
 % Slip Angles
-alpha_fl = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5)) - delta;
-alpha_fr = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5)) - delta;
-alpha_rl = (Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5);
-alpha_rr = (Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5);
+alpha_fl = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5)) - (delta - carData.Suspension.aToeStaticFront*pi/180); % [deg], negative is toe inwards, wheel pointing inwards to chassis
+alpha_fr = ((Vx*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5)) - (delta + carData.Suspension.aToeStaticFront*pi/180);
+alpha_rl = ((Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx + yaw_rate*carData.Chassis.trackWidth*0.5))  - (-carData.Suspension.aToeStaticRear*pi/180); % [deg], negative is toe inwards, wheel pointing inwards to chassis
+alpha_rr = ((Vx*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (Vx - yaw_rate*carData.Chassis.trackWidth*0.5))  - (carData.Suspension.aToeStaticRear*pi/180);
 
 % Slip Ratios
 kappa_fl = (wheel_rot_fl*carData.Chassis.radWheel - Vx)/Vx;
@@ -82,13 +83,74 @@ w_rl = (carData.Chassis.massRear * g / 2) + (del_w_r) + longLT + (DF_rear/2);
 w_rr = (carData.Chassis.massRear * g / 2) - (del_w_r) + longLT + (DF_rear/2);
 
 % Wheel Forces
-[fy_fl, fx_fl] = MF52_Combined(kappa_fl,alpha_fl,w_fl,0);
-[fy_fr, fx_fr] = MF52_Combined(kappa_fr,alpha_fr,w_fr,0);
-[fy_rl, fx_rl] = MF52_Combined(kappa_rl,alpha_rl,w_rl,0);
-[fy_rr, fx_rr] = MF52_Combined(kappa_rr,alpha_rr,w_rr,0);
+[fy_fl, fx_fl] = tyreModel.MF52(kappa_fl,alpha_fl,w_fl,carData.Suspension.aCamberFront, carData);
+[fy_fr, fx_fr] = tyreModel.MF52(kappa_fr,alpha_fr,w_fr,-carData.Suspension.aCamberFront, carData);
+[fy_rl, fx_rl] = tyreModel.MF52(kappa_rl,alpha_rl,w_rl,carData.Suspension.aCamberRear, carData);
+[fy_rr, fx_rr] = tyreModel.MF52(kappa_rr,alpha_rr,w_rr,-carData.Suspension.aCamberRear, carData);
+
+brakeBias_tyre = (fx_fl + fx_fr) / (fx_fl + fx_fr + fx_rl + fx_rr);
 
 % Car States
 ay_out = (fy_fl + fy_fr + fy_rl + fy_rr)/carData.Chassis.mass;
 ax_out = (fx_fl + fx_fr + fx_rl + fx_rr - Fd)/carData.Chassis.mass;
 Mz_out = (carData.Chassis.frontMomentArm*(fy_fl + fy_fr) + 0.5*carData.Chassis.trackWidth*(fx_fl + fx_rl) ...
           - carData.Chassis.rearMomentArm*(fy_rl + fy_rr) - 0.5*carData.Chassis.trackWidth*(fx_fr + fx_rr))/carData.Chassis.yawInertia;
+
+ % Residuals
+ax_res = ax_control - ax_out;
+ay_res = ay_control - ay_out;
+brakeBias_res = carData.Brakes.rBrakeBias - brakeBias_tyre;
+
+% Path Constraints
+
+nlpBSP.subject_to(-12*pi/180<=alpha_fl<=12*pi/180);
+nlpBSP.subject_to(-12*pi/180<=alpha_fr<=12*pi/180);
+nlpBSP.subject_to(-12*pi/180<=alpha_rl<=12*pi/180);
+nlpBSP.subject_to(-12*pi/180<=alpha_rr<=12*pi/180);
+
+nlpBSP.subject_to(-0.1<=kappa_fl<=0.1);
+nlpBSP.subject_to(-0.1<=kappa_fr<=0.1);
+nlpBSP.subject_to(-0.1<=kappa_rl<=0.1);
+nlpBSP.subject_to(-0.1<=kappa_rr<=0.1);
+
+% objective
+nlpBSP.minimize(-Vx);
+
+% initialization of decision variables
+nlpBSP.set_initial(Vx,LSP.Vx(i-1));
+nlpBSP.set_initial(delta,LSP.delta(i-1));
+nlpBSP.set_initial(beta,LSP.beta(i-1));
+% nlpBSP.set_initial(yaw_rate,LSP.yaw_rate(i-1));
+nlpBSP.set_initial(wheel_rot_fl,LSP.wheel_rot_fl(i-1));
+nlpBSP.set_initial(wheel_rot_fr,LSP.wheel_rot_fr(i-1));
+nlpBSP.set_initial(wheel_rot_rl,LSP.wheel_rot_rl(i-1));
+nlpBSP.set_initial(wheel_rot_rr,LSP.wheel_rot_rr(i-1));
+
+% Constraints
+nlpBSP.subject_to(-0.05<=ay_res<=0.05);
+nlpBSP.subject_to(-0.05<=ax_res<=0.05);
+% nlpBSP.subject_to(yaw_rate == curvature*Vx);
+nlpBSP.subject_to(-5 <= Mz_out <= 5);
+
+% solve
+plugin_opts = struct('print_time',0);
+solver_opts = struct('print_level',0); %'constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001, 
+nlpBSP.solver('ipopt',plugin_opts,solver_opts);  
+sol = nlpBSP.solve();
+
+% extract results
+LSP.Vx(i)                  = sol.value(Vx);                % Velocity (m/s)
+LSP.Ay(i)                  = sol.value(ay_out);            % Lateral Acceleration (m/s^2)
+LSP.Ax(i)                  = sol.value(ax_out);            % Lateral Acceleration (m/s^2)
+LSP.Ax_control(i)          = sol.value(ax_control);
+LSP.delta(i)               = sol.value(delta);             % steering angle (rad)
+LSP.beta(i)                = sol.value(beta);              % sideslip angle (rad)
+LSP.yaw_rate(i)            = sol.value(yaw_rate);          % yaw rate (rad/s)
+LSP.wheel_rot_fl(i)        = sol.value(wheel_rot_fl);      % FL wheel angular velocity (rad/s)
+LSP.wheel_rot_fr(i)        = sol.value(wheel_rot_fr);      % FR wheel angular velocity (rad/s)
+LSP.wheel_rot_rl(i)        = sol.value(wheel_rot_rl);      % RL wheel angular velocity (rad/s)
+LSP.wheel_rot_rr(i)        = sol.value(wheel_rot_rr);      % RR wheel angular velocity (rad/s)
+LSP.F_drag(i)              = sol.value(Fd);
+
+
+end
