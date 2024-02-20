@@ -5,23 +5,23 @@ addpath(genpath('C:\Users\admin\Desktop\Git Repository\QSS-LTS-F3'))
 addpath('C:\Users\admin\Documents\CasAdi')
 
 %% Create Track
-% sectorDistance = 3;
-% [trackDistance, trackCurvature] = preProccess.loadTrackModel('FSUK_2016.mat', sectorDistance);
-
 sectorDistance = 1;
-data = readtable("track_data.txt");
-ay_meas = data.Acc_y_g.*9.81; % Smooth Noisy data due to low sampling rate
-dist = data.dist;
-vel_ms = data.gps_speed_kmh./3.6;
-time = data.time;
-meas_lap_time = time(end);
-yaw_rate = data.yaw_rate_deg_sec;
-curvature = lowpass((ay_meas)./(vel_ms.^2),0.075);
+[trackDistance, trackCurvature] = preProccess.loadTrackModel('FSUK_2016.mat', sectorDistance);
 
-trackDistance = 0:sectorDistance:max(dist);
-fitting_factor = 0.5;
-
-trackCurvature = csaps(dist, curvature,fitting_factor,trackDistance);
+% sectorDistance = 1;
+% data = readtable("track_data.txt");
+% ay_meas = data.Acc_y_g.*9.81; % Smooth Noisy data due to low sampling rate
+% dist = data.dist;
+% vel_ms = data.gps_speed_kmh./3.6;
+% time = data.time;
+% meas_lap_time = time(end);
+% yaw_rate = data.yaw_rate_deg_sec;
+% curvature = lowpass((ay_meas)./(vel_ms.^2),0.075);
+% 
+% trackDistance = 0:sectorDistance:max(dist);
+% fitting_factor = 0.5;
+% 
+% trackCurvature = csaps(dist, curvature,fitting_factor,trackDistance);
 
 trackData = struct;
 trackData.trackDistance = trackDistance;
@@ -67,23 +67,23 @@ end
 clear i; clc;
 
 % Initial Guess for slowest apex
-FSP.V_current(ApexStartPosition)           = LSP.Vx(ApexStartPosition);                % Velocity (m/s)
-FSP.delta(ApexStartPosition)               = LSP.delta(ApexStartPosition);             % steering angle (rad)
-FSP.beta(ApexStartPosition)                = LSP.beta(ApexStartPosition);              % sideslip angle (rad)
-FSP.yaw_rate(ApexStartPosition)            = LSP.yaw_rate(ApexStartPosition);          % yaw rate (rad/s)
-FSP.throttle_position(ApexStartPosition)   = LSP.throttle_position(ApexStartPosition); % throttle position (-)
-FSP.brake_pressure(ApexStartPosition)      = 0;                                        % brake pressure (bar)
-FSP.wheel_rot_fl(ApexStartPosition)        = LSP.wheel_rot_fl(ApexStartPosition);      % FL wheel angular velocity (rad/s)
-FSP.wheel_rot_fr(ApexStartPosition)        = LSP.wheel_rot_fr(ApexStartPosition);      % FR wheel angular velocity (rad/s)
-FSP.wheel_rot_rl(ApexStartPosition)        = LSP.wheel_rot_rl(ApexStartPosition);      % RL wheel angular velocity (rad/s)
-FSP.wheel_rot_rr(ApexStartPosition)        = LSP.wheel_rot_rr(ApexStartPosition);      % RR wheel angular velocity (rad/s)
+FSP.V_current(ApexStartPosition-1:ApexStartPosition)           = LSP.Vx(ApexStartPosition-1:ApexStartPosition);                % Velocity (m/s)
+FSP.delta(ApexStartPosition-1:ApexStartPosition)               = LSP.delta(ApexStartPosition-1:ApexStartPosition);             % steering angle (rad)
+FSP.beta(ApexStartPosition-1:ApexStartPosition)                = LSP.beta(ApexStartPosition-1:ApexStartPosition);              % sideslip angle (rad)
+FSP.yaw_rate(ApexStartPosition-1:ApexStartPosition)            = LSP.yaw_rate(ApexStartPosition-1:ApexStartPosition);          % yaw rate (rad/s)
+FSP.throttle_position(ApexStartPosition-1:ApexStartPosition)   = LSP.throttle_position(ApexStartPosition-1:ApexStartPosition); % throttle position (-)
+FSP.brake_pressure(ApexStartPosition-1:ApexStartPosition)      = 0;                                        % brake pressure (bar)
+FSP.wheel_rot_fl(ApexStartPosition-1:ApexStartPosition)        = LSP.wheel_rot_fl(ApexStartPosition-1:ApexStartPosition);      % FL wheel angular velocity (rad/s)
+FSP.wheel_rot_fr(ApexStartPosition-1:ApexStartPosition)        = LSP.wheel_rot_fr(ApexStartPosition-1:ApexStartPosition);      % FR wheel angular velocity (rad/s)
+FSP.wheel_rot_rl(ApexStartPosition-1:ApexStartPosition)        = LSP.wheel_rot_rl(ApexStartPosition-1:ApexStartPosition);      % RL wheel angular velocity (rad/s)
+FSP.wheel_rot_rr(ApexStartPosition-1:ApexStartPosition)        = LSP.wheel_rot_rr(ApexStartPosition-1:ApexStartPosition);      % RR wheel angular velocity (rad/s)
 
 % Start from slowest Apex to End of Track
 
 for i = ApexStartPosition:numel(trackDistance)
 
     try
-    
+
         % Input Values
         curvature = trackCurvature(i);
         V_current = FSP.V_current(i);
@@ -93,9 +93,31 @@ for i = ApexStartPosition:numel(trackDistance)
         FSP = vehicleModels.forwardSpeed(i, sectorDistance, LSP, FSP, curvature, V_current, ay_control, carData);
 
     catch 
+        
+        % Dealing with Failed Solutions
+        if FSP.V_current(i) > LSP.Vx(i+1)
+            FSP.V_current(i+1)         = LSP.Vx(i+1);            
+            FSP.delta(i)               = LSP.delta(i);            
+            FSP.beta(i)                = LSP.beta(i);             
+            FSP.throttle_position(i)   = 0; % throttle position (-)
+            FSP.wheel_rot_fl(i)        = LSP.Vx(i)/carData.Chassis.radWheel;     
+            FSP.wheel_rot_fr(i)        = LSP.Vx(i)/carData.Chassis.radWheel;    
+            FSP.wheel_rot_rl(i)        = LSP.Vx(i)/carData.Chassis.radWheel;    
+            FSP.wheel_rot_rr(i)        = LSP.Vx(i)/carData.Chassis.radWheel;  
 
-        FSP.V_current(i+1)         = LSP.Vx(i+1);                % Velocity (m/s)
-        disp('---Infeasible State / Hit Boundary Speed------')
+        else
+            FSP.V_current(i+1)           = FSP.V_current(i);        
+            FSP.delta(i+1)               = FSP.delta(i-1);            
+            FSP.beta(i+1)                = FSP.beta(i-1);             
+            FSP.throttle_position(i+1)   = FSP.throttle_position(i-1); % throttle position (-)
+            FSP.wheel_rot_fl(i+1)        = FSP.V_current(i)/carData.Chassis.radWheel;     
+            FSP.wheel_rot_fr(i+1)        = FSP.V_current(i)/carData.Chassis.radWheel;    
+            FSP.wheel_rot_rl(i+1)        = FSP.V_current(i)/carData.Chassis.radWheel;    
+            FSP.wheel_rot_rr(i+1)        = FSP.V_current(i)/carData.Chassis.radWheel;  
+
+        end
+        
+        disp('---Infeasible State / Use Previous Point ------')
 
     end
 
@@ -106,7 +128,9 @@ end
 % From start of track to slowest apex
 
 for i = 1:ApexStartPosition-1
+
     try    
+
         % Input Values
         curvature = trackCurvature(i);
         V_current = FSP.V_current(i);
@@ -116,8 +140,32 @@ for i = 1:ApexStartPosition-1
         FSP = vehicleModels.forwardSpeed(i, sectorDistance, LSP, FSP, curvature, V_current, ay_control, carData);
 
     catch 
-        FSP.V_current(i+1)         = LSP.Vx(i+1);                % Velocity (m/s)
-        disp('---Infeasible State / Hit Boundary Speed------')
+        
+        % Dealing with Failed Solutions
+        if FSP.V_current(i) > LSP.Vx(i+1)
+            FSP.V_current(i+1)         = LSP.Vx(i+1);            
+            FSP.delta(i)               = LSP.delta(i);            
+            FSP.beta(i)                = LSP.beta(i);             
+            FSP.throttle_position(i)   = 0; % throttle position (-)
+            FSP.wheel_rot_fl(i)        = LSP.Vx(i)/carData.Chassis.radWheel;     
+            FSP.wheel_rot_fr(i)        = LSP.Vx(i)/carData.Chassis.radWheel;    
+            FSP.wheel_rot_rl(i)        = LSP.Vx(i)/carData.Chassis.radWheel;    
+            FSP.wheel_rot_rr(i)        = LSP.Vx(i)/carData.Chassis.radWheel;  
+
+        else
+            FSP.V_current(i+1)           = FSP.V_current(i);        
+            FSP.delta(i+1)               = FSP.delta(i-1);            
+            FSP.beta(i+1)                = FSP.beta(i-1);             
+            FSP.throttle_position(i+1)   = FSP.throttle_position(i-1); % throttle position (-)
+            FSP.wheel_rot_fl(i+1)        = FSP.V_current(i)/carData.Chassis.radWheel;     
+            FSP.wheel_rot_fr(i+1)        = FSP.V_current(i)/carData.Chassis.radWheel;    
+            FSP.wheel_rot_rl(i+1)        = FSP.V_current(i)/carData.Chassis.radWheel;    
+            FSP.wheel_rot_rr(i+1)        = FSP.V_current(i)/carData.Chassis.radWheel;  
+
+        end
+        
+        disp('---Infeasible State / Use Previous Point ------')
+
     end
 
     disp(['Forward Speed Profile -- ',  num2str(i), '/',num2str(numel(trackCurvature))])
@@ -137,8 +185,32 @@ for i = numel(trackDistance):-1:2
         
         RSP = vehicleModels.reverseSpeed(i, sectorDistance, LSP, RSP, curvature, V_current, ay_control, carData);
 
-    catch 
-        RSP.V_current(i-1)         = LSP.Vx(i-1);                % Velocity (m/s)
+     catch 
+
+        % Dealing with Failed Solutions
+
+        if RSP.V_current(i) > LSP.Vx(i-1) % If current velocity is higher than next boundary speed
+            RSP.V_current(i-1)         = LSP.Vx(i-1);            
+            RSP.delta(i)               = LSP.delta(i);            
+            RSP.beta(i)                = LSP.beta(i);             
+            RSP.brake_pressure(i)      = 0; % throttle position (-)
+            RSP.wheel_rot_fl(i)        = LSP.Vx(i-1)/carData.Chassis.radWheel;     
+            RSP.wheel_rot_fr(i)        = LSP.Vx(i-1)/carData.Chassis.radWheel;    
+            RSP.wheel_rot_rl(i)        = LSP.Vx(i-1)/carData.Chassis.radWheel;    
+            RSP.wheel_rot_rr(i)        = LSP.Vx(i-1)/carData.Chassis.radWheel;  
+
+        else
+            RSP.V_current(i-1)         = RSP.V_current(i);        
+            RSP.delta(i)               = RSP.delta(i+1);            
+            RSP.beta(i)                = RSP.beta(i+1);             
+            RSP.brake_pressure(i)      = RSP.brake_pressure(i+1); % throttle position (-)
+            RSP.wheel_rot_fl(i)        = RSP.V_current(i)/carData.Chassis.radWheel;     
+            RSP.wheel_rot_fr(i)        = RSP.V_current(i)/carData.Chassis.radWheel;    
+            RSP.wheel_rot_rl(i)        = RSP.V_current(i)/carData.Chassis.radWheel;    
+            RSP.wheel_rot_rr(i)        = RSP.V_current(i)/carData.Chassis.radWheel;  
+
+        end
+
         disp('---Infeasible State / Hit Boundary Speed------')
     end
 

@@ -8,22 +8,41 @@ function RSP = reverseSpeed(i, sector_length, LSP, RSP, curvature, V_current, ay
     import casadi.*
     
     nlpRSP = casadi.Opti();
-    
-    deltaMin = -27;
-    deltaMax = 27;
-    betaMin = -3;
-    betaMax = 3;
-    
+
     % decision variables & box constraints
-    V_out = nlpRSP.variable(); nlpRSP.subject_to(0<=V_out<=carData.Powertrain.vMax);                                                 % steering angle (rad)
-    delta = nlpRSP.variable(); nlpRSP.subject_to(deltaMin*pi/180<=delta<=deltaMax*pi/180);                                           % steering angle (rad)
-    beta = nlpRSP.variable(); nlpRSP.subject_to(betaMin*pi/180<=beta<=betaMax*pi/180);                                               % sideslip angle (rad)
-    brake_pressure = nlpRSP.variable(); nlpRSP.subject_to(0<=brake_pressure<=1);                                                     % brake pressure (bar)
-    wheel_rot_fl = nlpRSP.variable(); nlpRSP.subject_to(0<=wheel_rot_fl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FL wheel angular velocity (rad/s)
-    wheel_rot_fr = nlpRSP.variable(); nlpRSP.subject_to(0<=wheel_rot_fr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % FR wheel angular velocity (rad/s)
-    wheel_rot_rl = nlpRSP.variable(); nlpRSP.subject_to(0<=wheel_rot_rl<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RL wheel angular velocity (rad/s)
-    wheel_rot_rr = nlpRSP.variable(); nlpRSP.subject_to(0<=wheel_rot_rr<=carData.Powertrain.vMax/carData.Chassis.radWheel)           % RR wheel angular velocity (rad/s)
+    V_outScaled = nlpRSP.variable();                nlpRSP.subject_to(0.1<=V_outScaled<=1)   
+    deltaScaled = nlpRSP.variable();                nlpRSP.subject_to(-1<=deltaScaled<=1);                  % steering angle (rad)
+    betaScaled = nlpRSP.variable();                 nlpRSP.subject_to(-1<=betaScaled<=1);                   % sideslip angle (rad)
+    yaw_rateScaled = nlpRSP.variable();             nlpRSP.subject_to(-1<=yaw_rateScaled<=1);               % yaw rate (rad/s)
+    % throttle_positionScaled = nlpRSP.variable();    nlpRSP.subject_to(0<=throttle_positionScaled<=1);     % throttle position (-)
+    brake_pressureScaled = nlpRSP.variable();       nlpRSP.subject_to(0<=brake_pressureScaled<=1);            % brake pressure (bar)
+    wheel_rot_flScaled = nlpRSP.variable();         nlpRSP.subject_to(0<=wheel_rot_flScaled<=1)             % FL wheel angular velocity (rad/s)
+    wheel_rot_frScaled = nlpRSP.variable();         nlpRSP.subject_to(0<=wheel_rot_frScaled<=1)             % FR wheel angular velocity (rad/s)
+    wheel_rot_rlScaled = nlpRSP.variable();         nlpRSP.subject_to(0<=wheel_rot_rlScaled<=1)             % RL wheel angular velocity (rad/s)
+    wheel_rot_rrScaled = nlpRSP.variable();         nlpRSP.subject_to(0<=wheel_rot_rrScaled<=1)             % RR wheel angular velocity (rad/s)
     
+    % State Weights
+    V_out_weight = carData.Powertrain.vMax;
+    deltaWeight = 30*pi/180;
+    betaWeight = 5*pi/180;
+    % throttle_position_weight = 1;
+    brake_pressure_weight = 100;
+    wheel_rot_weight = carData.Powertrain.vMax/carData.Chassis.radWheel;
+   
+    % Scaling for decision variables
+    V_out = V_outScaled * V_out_weight; 
+    delta = deltaScaled * deltaWeight;
+    beta = betaScaled * betaWeight;
+    % throttle_position = throttle_positionScaled  * throttle_position_weight;
+    brake_pressure = brake_pressureScaled * brake_pressure_weight;
+    wheel_rot_fl = wheel_rot_flScaled * wheel_rot_weight;
+    wheel_rot_fr = wheel_rot_frScaled * wheel_rot_weight;
+    wheel_rot_rl = wheel_rot_rlScaled * wheel_rot_weight;
+    wheel_rot_rr = wheel_rot_rrScaled * wheel_rot_weight;
+    
+    % Initial Value for Wheel Velocity - Scaled
+    initWheelVel = (V_current/carData.Chassis.radWheel)/(wheel_rot_weight);
+
     %% Equations of Motion
     
     yaw_rate = V_out * curvature;
@@ -50,8 +69,8 @@ function RSP = reverseSpeed(i, sector_length, LSP, RSP, curvature, V_current, ay
     % Slip Angles
     alpha_fl = ((V_out*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (V_out + yaw_rate*carData.Chassis.trackWidth*0.5)) - (delta - carData.Suspension.aToeStaticFront*pi/180);
     alpha_fr = ((V_out*tan(beta) + carData.Chassis.frontMomentArm*yaw_rate) / (V_out - yaw_rate*carData.Chassis.trackWidth*0.5)) - (delta + carData.Suspension.aToeStaticFront*pi/180);
-    alpha_rl = (V_out*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (V_out + yaw_rate*carData.Chassis.trackWidth*0.5) - (-carData.Suspension.aToeStaticRear*pi/180);;
-    alpha_rr = (V_out*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (V_out - yaw_rate*carData.Chassis.trackWidth*0.5) - (carData.Suspension.aToeStaticRear*pi/180);;
+    alpha_rl = (V_out*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (V_out + yaw_rate*carData.Chassis.trackWidth*0.5) - (-carData.Suspension.aToeStaticRear*pi/180);
+    alpha_rr = (V_out*tan(beta) - carData.Chassis.rearMomentArm*yaw_rate) / (V_out - yaw_rate*carData.Chassis.trackWidth*0.5) - (carData.Suspension.aToeStaticRear*pi/180);
     
     % Slip Ratios
     kappa_fl = (wheel_rot_fl*carData.Chassis.radWheel - V_out)/V_out;
@@ -113,14 +132,14 @@ function RSP = reverseSpeed(i, sector_length, LSP, RSP, curvature, V_current, ay
     nlpRSP.minimize(-V_out);
     
     % initialization of decision variables
-    nlpRSP.set_initial(V_out,V_current);
-    nlpRSP.set_initial(delta,0);
-    nlpRSP.set_initial(beta,0);
-    nlpRSP.set_initial(brake_pressure,0);
-    nlpRSP.set_initial(wheel_rot_fl,V_current/carData.Chassis.radWheel);
-    nlpRSP.set_initial(wheel_rot_fr,V_current/carData.Chassis.radWheel);
-    nlpRSP.set_initial(wheel_rot_rl,V_current/carData.Chassis.radWheel);
-    nlpRSP.set_initial(wheel_rot_rr,V_current/carData.Chassis.radWheel);
+    nlpRSP.set_initial(V_outScaled,V_current/V_out_weight);
+    nlpRSP.set_initial(deltaScaled,0);
+    nlpRSP.set_initial(betaScaled,0);
+    nlpRSP.set_initial(brake_pressureScaled,0);
+    nlpRSP.set_initial(wheel_rot_flScaled,initWheelVel);
+    nlpRSP.set_initial(wheel_rot_frScaled,initWheelVel);
+    nlpRSP.set_initial(wheel_rot_rlScaled,initWheelVel);
+    nlpRSP.set_initial(wheel_rot_rrScaled,initWheelVel);
 
     % Constraints
     nlpRSP.subject_to(-0.05<=ay_res<=0.05);
@@ -128,7 +147,7 @@ function RSP = reverseSpeed(i, sector_length, LSP, RSP, curvature, V_current, ay
     nlpRSP.subject_to(-0.025<=brakeBias_res<=0.025);
     nlpRSP.subject_to(-5 <= Mz_out <= 5);
     nlpRSP.subject_to(-0.001 <= Vx_res <= 0.001);
-    nlpRSP.subject_to(V_out <= LSP.Vx(i-1));
+    % nlpRSP.subject_to(V_out <= LSP.Vx(i-1));
     
     % solve
     plugin_opts = struct('print_time',0);
@@ -136,8 +155,14 @@ function RSP = reverseSpeed(i, sector_length, LSP, RSP, curvature, V_current, ay
     nlpRSP.solver('ipopt',plugin_opts,solver_opts);  
     sol = nlpRSP.solve();
 
-    % extract results
-    RSP.V_current(i-1)         = sol.value(V_out);                % Velocity (m/s)
+    if sol.value(V_out) > LSP.Vx(i-1)
+        % extract results
+        RSP.V_current(i-1)         = LSP.Vx(i-1);                % Velocity (m/s)
+    else
+        % extract results
+        RSP.V_current(i-1)         = sol.value(V_out);                % Velocity (m/s)
+    end
+
     RSP.Ay(i)                  = sol.value(ay_out);            % Lateral Acceleration (m/s^2)
     RSP.Ax(i)                  = sol.value(ax_out);            % Lateral Acceleration (m/s^2)
     RSP.Ax_control(i)          = sol.value(ax_control);

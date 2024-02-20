@@ -1,10 +1,9 @@
-%%%%%%%%%%%%%%%%%%%%%%%
-% CasADi Problem Formulation of Vehicle Model
-% Reference - Mario Boxheimer 
+%% Online LTS Diagnosis Tool
 
-function LSP = boundarySpeed(i, LSP, curvature, carData)
+i = 177;
+curvature = trackCurvature(i);
+carData = preProccess.initVehicleModel();
 
-% initialize Problem
 import casadi.*
 
 nlpBSP = casadi.Opti();
@@ -143,23 +142,34 @@ nlpBSP.subject_to(-5 <= Mz_out <= 5);
 
 % solve
 plugin_opts = struct('print_time',0);
-solver_opts = struct('print_level',0); %'constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001, 
+solver_opts = struct('acceptable_obj_change_tol',0.001); %'constr_viol_tol',0.1,'acceptable_obj_change_tol',0.001, 
 nlpBSP.solver('ipopt',plugin_opts,solver_opts);  
 sol = nlpBSP.solve();
+%%
+% Convergence Constraints
+rad2deg(nlpBSP.debug.value(deltaScaled)* 30*pi/180)
+rad2deg(nlpBSP.debug.value(betaScaled) *5*pi/180)
+nlpBSP.debug.value(wheel_rot_flScaled)
+nlpBSP.debug.value(wheel_rot_frScaled)
+nlpBSP.debug.value(wheel_rot_rlScaled)
+nlpBSP.debug.value(wheel_rot_rrScaled)
 
-% extract results
-LSP.Vx(i)                  = sol.value(Vx);                % Velocity (m/s)
-LSP.Ay(i)                  = sol.value(ay_out);            % Lateral Acceleration (m/s^2)
-LSP.Ax(i)                  = sol.value(ax_out);            % Lateral Acceleration (m/s^2)
-LSP.Ax_control(i)          = sol.value(ax_control);
-LSP.delta(i)               = sol.value(delta);             % steering angle (rad)
-LSP.beta(i)                = sol.value(beta);              % sideslip angle (rad)
-LSP.yaw_rate(i)            = sol.value(yaw_rate);          % yaw rate (rad/s)
-LSP.wheel_rot_fl(i)        = sol.value(wheel_rot_fl);      % FL wheel angular velocity (rad/s)
-LSP.wheel_rot_fr(i)        = sol.value(wheel_rot_fr);      % FR wheel angular velocity (rad/s)
-LSP.wheel_rot_rl(i)        = sol.value(wheel_rot_rl);      % RL wheel angular velocity (rad/s)
-LSP.wheel_rot_rr(i)        = sol.value(wheel_rot_rr);      % RR wheel angular velocity (rad/s)
-LSP.F_drag(i)              = sol.value(Fd);
+% Convergence Constraints
+nlpBSP.debug.value(ay_res)
+nlpBSP.debug.value(ax_res)
+nlpBSP.debug.value(Mz_out)
+% States
+nlpBSP.debug.value(ax_control)
+nlpBSP.debug.value(ax_out)
+nlpBSP.debug.value(ay_out)
+nlpBSP.debug.value(ay_control)
+% Internal States
+rad2deg(nlpBSP.debug.value(alpha_fl))
+rad2deg(nlpBSP.debug.value(alpha_fr))
+rad2deg(nlpBSP.debug.value(alpha_rl))
+rad2deg(nlpBSP.debug.value(alpha_rr))
 
-
-end
+nlpBSP.debug.value(kappa_fl)
+nlpBSP.debug.value(kappa_fr)
+nlpBSP.debug.value(kappa_rl)
+nlpBSP.debug.value(kappa_rr)
