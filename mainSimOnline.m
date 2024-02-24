@@ -5,7 +5,7 @@ addpath(genpath('C:\Users\admin\Desktop\Git Repository\QSS-LTS-F3'))
 addpath('C:\Users\admin\Documents\CasAdi')
 
 %% Create Track
-sectorDistance = 1;
+sectorDistance = 2;
 [trackDistance, trackCurvature] = preProccess.loadTrackModel('FSUK_2016.mat', sectorDistance);
 
 % sectorDistance = 1;
@@ -200,10 +200,11 @@ for i = numel(trackDistance):-1:2
             RSP.wheel_rot_rr(i)        = LSP.Vx(i-1)/carData.Chassis.radWheel;  
 
         else
+
             RSP.V_current(i-1)         = RSP.V_current(i);        
-            RSP.delta(i)               = RSP.delta(i+1);            
-            RSP.beta(i)                = RSP.beta(i+1);             
-            RSP.brake_pressure(i)      = RSP.brake_pressure(i+1); % throttle position (-)
+            RSP.delta(i)               = LSP.delta(i);            
+            RSP.beta(i)                = LSP.beta(i);             
+            RSP.brake_pressure(i)      = 0; % throttle position (-)
             RSP.wheel_rot_fl(i)        = RSP.V_current(i)/carData.Chassis.radWheel;     
             RSP.wheel_rot_fr(i)        = RSP.V_current(i)/carData.Chassis.radWheel;    
             RSP.wheel_rot_rl(i)        = RSP.V_current(i)/carData.Chassis.radWheel;    
