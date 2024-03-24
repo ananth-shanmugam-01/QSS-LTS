@@ -1,7 +1,7 @@
 %% Iterative Calculation Lap Sim
 clear; clc; 
 
-addpath(genpath('C:\Users\admin\Desktop\Git Repository\QSS-LTS-F3'))
+addpath(genpath(pwd))
 addpath('C:\Users\admin\Documents\CasAdi')
 
 %% Create Track

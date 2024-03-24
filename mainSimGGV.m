@@ -1,6 +1,6 @@
 clear; clc; 
 
-addpath(genpath('C:\Users\admin\Desktop\Git Repository\QSS-LTS-F3'))
+addpath(genpath(pwd))
 addpath('C:\Users\admin\Documents\CasAdi')
 
 %% Load Track Parameterisation
@@ -15,35 +15,14 @@ carData = preProccess.initVehicleModel();
 % run GGV Calculation
 [GGV_surf, GGVresults] = simulate.runGGV(10, 10, carData);
 
+save('GGVresults.mat','GGVresults')
 %% run lap simulation 
 
 outputs = simulate.runLapSim(GGVresults, trackDistance, trackCurvature, sectorDistance);
 
+save('simOut.mat','outputs','carData','GGVresults','trackCurvature','trackDistance','sectorDistance')
+
 disp(['Lap Time: ', num2str(outputs.time(end)), '(s)'])
-
-%% Parameter Updates / Sweeps
-
-sweepRange = [0.20, 0.24, 0.28, 0.32, 0.36];
-results = [];
-
-for i = 1:numel(sweepRange)
-
-    carData.Chassis.heightSprungCOG = sweepRange(i);
-
-    % run GGV Calculation
-    [GGV_surf, GGVresults] = simulate.runGGV(10, 10, carData);
-    
-    % run lap simulation 
-    
-    outputs = simulate.runLapSim(GGVresults, trackDistance, trackCurvature, sectorDistance);
-    
-    disp(['Lap Time: ', num2str(outputs.time(end)), '(s)'])
-
-    results(i,1) = sweepRange(i);
-    results(i,2) = outputs.time(end);
-    disp(['Sweep Point-', num2str(i),'/',num2str(numel(sweepRange)),' Completed'])
-
-end
 
 %% post-process outputs
 
@@ -85,7 +64,39 @@ scatter3(outputs.gLat, outputs.gLong, outputs.vCar,'ro')
 hold off
 title('GGV Diagram')
 
-%%
+%% nexttile([2 2])
+figure(2)
+grid on; grid minor; box on;
+surf(GGV_surf(:,:,3),GGV_surf(:,:,2),GGV_surf(:,:,1),'FaceColor','none','CData',41)
+hold on
+scatter3(outputs.gLat(683:770), outputs.gLong(683:770), outputs.vCar(683:770),[],outputs.time(683:770),'o','filled')
+colorbar
+hold off
+title('GGV Diagram')
+
+%% Parameter Updates / Sweeps
+
+% sweepRange = [0.20, 0.24, 0.28, 0.32, 0.36];
+% results = [];
+% 
+% for i = 1:numel(sweepRange)
+% 
+%     carData.Chassis.heightSprungCOG = sweepRange(i);
+% 
+%     % run GGV Calculation
+%     [GGV_surf, GGVresults] = simulate.runGGV(10, 10, carData);
+%     
+%     % run lap simulation 
+%     
+%     outputs = simulate.runLapSim(GGVresults, trackDistance, trackCurvature, sectorDistance);
+%     
+%     disp(['Lap Time: ', num2str(outputs.time(end)), '(s)'])
+% 
+%     results(i,1) = sweepRange(i);
+%     results(i,2) = outputs.time(end);
+%     disp(['Sweep Point-', num2str(i),'/',num2str(numel(sweepRange)),' Completed'])
+% 
+% end
 
 
 

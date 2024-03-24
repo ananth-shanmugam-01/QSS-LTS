@@ -9,7 +9,7 @@ function [GGV_surf, GGVresults] = runGGV(velocitySteps, axSteps, carData)
     
     for i = 1:numel(velocityRange)
         velocity = velocityRange(i);
-        
+                             
         GGV = struct();
         GGV.ax = zeros(axSteps,1);
         GGV.ay = zeros(axSteps,1);
@@ -20,7 +20,7 @@ function [GGV_surf, GGVresults] = runGGV(velocitySteps, axSteps, carData)
         GGV.wheel_rot_fr = zeros(axSteps,1);
         GGV.wheel_rot_rl = zeros(axSteps,1);
         GGV.wheel_rot_rr = zeros(axSteps,1);
-          
+        
         % find Maximum Forward Acceleration
         GGV = ggvModels.acceleration(GGV, carData,velocity);
        
@@ -52,10 +52,10 @@ function [GGV_surf, GGVresults] = runGGV(velocitySteps, axSteps, carData)
         GGV_surf(i,:,4) =   [GGV.delta;    -GGV.delta] .*180/pi;    % delta, converted to [deg]
         GGV_surf(i,:,5) =   [GGV.beta;     -GGV.beta]  .*180/pi;    % beta, converted to [deg]
         GGV_surf(i,:,6) =   [GGV.yaw_rate; -(GGV.yaw_rate)];        % yaw_rate [rad/s]
-        GGV_surf(i,:,7) =   [GGV.wheel_rot_fl; GGV.wheel_rot_fl];   % wheel_rot_fl, [rad/s]
-        GGV_surf(i,:,8) =   [GGV.wheel_rot_fr; GGV.wheel_rot_fr];   % wheel_rot_fr, [rad/s]
-        GGV_surf(i,:,9) =   [GGV.wheel_rot_rl; GGV.wheel_rot_rl];   % wheel_rot_rl, [rad/s]
-        GGV_surf(i,:,10) =  [GGV.wheel_rot_rr; GGV.wheel_rot_rr];   % wheel_rot_rr, [rad/s]
+        GGV_surf(i,:,7) =   [GGV.wheel_rot_fl; GGV.wheel_rot_fr];   % wheel_rot_fl, opposite becomes fr [rad/s]
+        GGV_surf(i,:,8) =   [GGV.wheel_rot_fr; GGV.wheel_rot_fl];   % wheel_rot_fr, [rad/s]
+        GGV_surf(i,:,9) =   [GGV.wheel_rot_rl; GGV.wheel_rot_rr];   % wheel_rot_rl, [rad/s]
+        GGV_surf(i,:,10) =  [GGV.wheel_rot_rr; GGV.wheel_rot_rl];   % wheel_rot_rr, [rad/s]
 
 
         disp(['-------- ', 'Calculated Step: ', num2str(i) ,'/', num2str(velocitySteps), ' --------'])

@@ -127,11 +127,8 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
 
 
     outputs.interpolants.cornerVelInterp = cornerVelInterp;
-    outputs.interpolants.maxAccelerationInterp = maxAccelerationInterp;
-    outputs.interpolants.maxDecelerationInterp = maxDecelerationInterp;
-
-    outputs.track.sLap = trackDistance;
-    outputs.track.curvature = trackCurvature;
+    outputs.interpolant.maxAccelerationInterp = maxAccelerationInterp;
+    outputs.interpolant.maxDecelerationInterp = maxDecelerationInterp;
 
 
     stopTimer = toc(startTimer);
