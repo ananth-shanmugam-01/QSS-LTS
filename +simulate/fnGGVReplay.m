@@ -1,11 +1,8 @@
-% fnGGVReplayresult
-clear; clc;
-
-% Load GGV Results and GGV Surface and GGV Interpolantsreplay
-load("simOut.mat")
-
+function replay = fnGGVReplay(reMeshLength, outputs, GGVresults, trackData, carData) 
 % Create Interpolants for each variable (states and controls) as a function
-% of forward velocity, lateral acceleration, longitudinal acceleration
+% of forward velocity, lateral acceleration, longitudinal acceleration,
+% used only for initial solution to replay solver
+% replay states are only from the NLP solve - coherent with physics
 
 % Forward Velocity Profile
 posAyIdx = GGVresults.Ax >= 0; % For parts of the GGV results that correspond to acceleration
@@ -31,7 +28,6 @@ DecelerationWheelRotRRInterp = scatteredInterpolant(GGVresults.vel(posAyIdx), GG
 % Low Pass Filter
 % Bring back dissertation work on a more representative filter~~~
 d1 = designfilt("lowpassiir",FilterOrder=4,HalfPowerFrequency=0.1,DesignMethod="butter");
-filtAx = filtfilt(d1, outputs.gLong);
 
 GGVinterp = struct;
 
@@ -91,44 +87,81 @@ GGVinterp.dist = outputs.dist;
 GGVinterp.delta = csaps(GGVinterp.dist,GGVinterp.delta,0.3,GGVinterp.dist);
 GGVinterp.beta = csaps(GGVinterp.dist,GGVinterp.beta,0.3,GGVinterp.dist);
 
-% Resample track to be coarser - not necessary to do the full-track
-reMeshLength = 500;
+% Resample track based on input remesh length - not necessary to do the full-track
 inputs = struct;
 
-inputs.trackDistance    = linspace(0, trackDistance(end), reMeshLength);
+inputs.trackDistance    = linspace(0, trackData.trackDistance(end), reMeshLength)';
 inputs.sectorDistance   = gradient(inputs.trackDistance);
-inputs.trackCurvature   = interp1(trackDistance,trackCurvature,inputs.trackDistance,'makima');
+inputs.trackCurvature   = interp1(trackData.trackDistance,trackData.trackCurvature,inputs.trackDistance,'makima');
 
-inputs.Vel = interp1(outputs.dist,outputs.vCar,inputs.trackDistance,'makima');
-inputs.gLat = interp1(outputs.dist,outputs.gLat,inputs.trackDistance,'makima');
-inputs.gLong = interp1(outputs.dist,outputs.gLong,inputs.trackDistance,'makima'); % Filtered g-long used here
+inputs.Vel = interp1(outputs.dist,outputs.vCar,inputs.trackDistance,'makima')';
+inputs.gLat = interp1(outputs.dist,outputs.gLat,inputs.trackDistance,'makima')';
+inputs.gLong = interp1(outputs.dist,outputs.gLong,inputs.trackDistance,'makima')'; % Filtered g-long used here
 inputs.yawRate = inputs.Vel .* inputs.trackCurvature;
 
-% Outputs
+% Initial OUtput struct
 
 replay = struct;
 
-replay.vel          = zeros(numel(inputs.trackDistance),1);
-replay.ay           = zeros(numel(inputs.trackDistance),1);
-replay.ax           = zeros(numel(inputs.trackDistance),1);
-replay.throttle     = zeros(numel(inputs.trackDistance),1);
-replay.brake        = zeros(numel(inputs.trackDistance),1);
-replay.delta        = zeros(numel(inputs.trackDistance),1);
-replay.beta         = zeros(numel(inputs.trackDistance),1);
-replay.yaw_rate     = zeros(numel(inputs.trackDistance),1);
-replay.wheel_rot_fl = zeros(numel(inputs.trackDistance),1);
-replay.wheel_rot_fr = zeros(numel(inputs.trackDistance),1);
-replay.wheel_rot_rl = zeros(numel(inputs.trackDistance),1);
-replay.wheel_rot_rr = zeros(numel(inputs.trackDistance),1);
-replay.optiFailFlag = zeros(numel(inputs.trackDistance),1);
+% Bring over input parameters
+replay.sLap                  = inputs.trackDistance;
+replay.trackCurvature        = inputs.trackCurvature;
+replay.inputStates.vCar      = inputs.Vel;
+replay.inputStates.gLat      = inputs.gLat;
+replay.inputStates.gLong     = inputs.gLong;
+replay.inputStates.yawRate   = inputs.yawRate;
+
+% extract results
+replay.vCar          = zeros(numel(inputs.trackDistance),1);
+replay.gLat          = zeros(numel(inputs.trackDistance),1);
+replay.gLong         = zeros(numel(inputs.trackDistance),1);
+replay.rThrottle     = zeros(numel(inputs.trackDistance),1);
+replay.pBrake        = zeros(numel(inputs.trackDistance),1); 
+replay.aSteer        = zeros(numel(inputs.trackDistance),1);
+replay.aBeta         = zeros(numel(inputs.trackDistance),1);
+replay.yawRate       = zeros(numel(inputs.trackDistance),1);
+replay.nWheelRotFL   = zeros(numel(inputs.trackDistance),1);
+replay.nWheelRotFR   = zeros(numel(inputs.trackDistance),1);
+replay.nWheelRotRL   = zeros(numel(inputs.trackDistance),1);
+replay.nWheelRotRR   = zeros(numel(inputs.trackDistance),1);
+% Wheel Kinematics
+replay.aSlipAngleFL = zeros(numel(inputs.trackDistance),1);
+replay.aSlipAngleFR = zeros(numel(inputs.trackDistance),1);
+replay.aSlipAngleRL = zeros(numel(inputs.trackDistance),1);
+replay.aSlipAngleRR = zeros(numel(inputs.trackDistance),1);
+replay.aSlipRatioFL = zeros(numel(inputs.trackDistance),1);
+replay.aSlipRatioFR = zeros(numel(inputs.trackDistance),1);
+replay.aSlipRatioRL = zeros(numel(inputs.trackDistance),1);
+replay.aSlipRatioRR = zeros(numel(inputs.trackDistance),1);
+% Wheel Forces
+replay.FzTyreFL = zeros(numel(inputs.trackDistance),1);
+replay.FzTyreFR = zeros(numel(inputs.trackDistance),1);
+replay.FzTyreRL = zeros(numel(inputs.trackDistance),1);
+replay.FzTyreRR = zeros(numel(inputs.trackDistance),1);
+replay.FyTyreFL = zeros(numel(inputs.trackDistance),1);
+replay.FyTyreFR = zeros(numel(inputs.trackDistance),1);
+replay.FyTyreRL = zeros(numel(inputs.trackDistance),1);
+replay.FyTyreRR = zeros(numel(inputs.trackDistance),1);
+replay.FxTyreFL = zeros(numel(inputs.trackDistance),1);
+replay.FxTyreFR = zeros(numel(inputs.trackDistance),1);
+replay.FxTyreRL = zeros(numel(inputs.trackDistance),1);
+replay.FxTyreRR = zeros(numel(inputs.trackDistance),1);
+% Body Forces
+replay.FBrakeFront = zeros(numel(inputs.trackDistance),1);
+replay.FBrakeRear  = zeros(numel(inputs.trackDistance),1);
+replay.FTractive   = zeros(numel(inputs.trackDistance),1);
+replay.FDownforceTotal = zeros(numel(inputs.trackDistance),1);
+replay.FDownforceFront = zeros(numel(inputs.trackDistance),1);
+replay.FDownforceRear  = zeros(numel(inputs.trackDistance),1);
+replay.FDrag           = zeros(numel(inputs.trackDistance),1);
 
 % Create Initial Guess Array from Interpolated States
 
 initialSolution = struct;
-initialSolution.throttle = zeros(numel(inputs.trackDistance),1);
-initialSolution.brake    = zeros(numel(inputs.trackDistance),1);
-initialSolution.delta    = interp1(GGVinterp.dist,GGVinterp.delta, inputs.trackDistance,'makima');
-initialSolution.beta     = interp1(GGVinterp.dist,GGVinterp.beta, inputs.trackDistance,'makima');
+initialSolution.throttle         = zeros(numel(inputs.trackDistance),1);
+initialSolution.brake            = zeros(numel(inputs.trackDistance),1);
+initialSolution.delta            = interp1(GGVinterp.dist,GGVinterp.delta, inputs.trackDistance,'makima');
+initialSolution.beta             = interp1(GGVinterp.dist,GGVinterp.beta, inputs.trackDistance,'makima');
 initialSolution.wheel_rot_fl     = interp1(GGVinterp.dist,GGVinterp.wheel_rot_fl, inputs.trackDistance,'makima');
 initialSolution.wheel_rot_fr     = interp1(GGVinterp.dist,GGVinterp.wheel_rot_fr, inputs.trackDistance,'makima');
 initialSolution.wheel_rot_rl     = interp1(GGVinterp.dist,GGVinterp.wheel_rot_rl, inputs.trackDistance,'makima');
@@ -139,57 +172,37 @@ initialSolution.wheel_rot_rr     = interp1(GGVinterp.dist,GGVinterp.wheel_rot_rr
 for i = 1:numel(inputs.trackDistance)
    
     replay = vehicleModels.GGVreplay(i, initialSolution, inputs, replay, carData);
-    % replay.getReplayStates(index, outputs, carData, replay);
 
 end
 
-%%
-
-% Return solved outputs
-states = fieldnames(replay);
-figure(1); tiledlayout(7,2);
-
-for i = 1:numel(states)
-    nexttile
-    plot(inputs.trackDistance, replay.(states{i}))
-    title(char(states{i}),'Interpreter','none')
 end
-
 %%
 
-figure(2); clf; tiledlayout(3,1)
-nexttile
-plot(inputs.trackDistance,replay.vel)
-
-nexttile
-hold on
-plot(inputs.trackDistance,replay.ax,'DisplayName','GGV')
-plot(inputs.trackDistance,inputs.gLong,'DisplayName','Replay')
-hold off; legend
-
-
-nexttile
-hold on
-plot(inputs.trackDistance, replay.ay,'DisplayName','GGV')
-plot(inputs.trackDistance,inputs.gLat,'DisplayName','Replay')
-hold off; legend
-
-%%
-% weights = struct;
-% weights.deltaWeight = 30*pi/180;
-% weights.betaWeight = 5*pi/180;
-% weights.throttle_position_weight = 1;
-% weights.brake_pressure_weight = 100;
-% weights.wheel_rot_fl_weight = carData.Powertrain.vMax/carData.Chassis.radWheel;
-% weights.wheel_rot_fr_weight = carData.Powertrain.vMax/carData.Chassis.radWheel;
-% weights.wheel_rot_rl_weight = carData.Powertrain.vMax/carData.Chassis.radWheel;
-% weights.wheel_rot_rr_weight = carData.Powertrain.vMax/carData.Chassis.radWheel;
-% 
-% states = fieldnames(initialSolution);
-% figure(1); tiledlayout(4,2);
+% % Return solved outputs
+% states = fieldnames(replay);
+% figure(1); tiledlayout(7,2);
 % 
 % for i = 1:numel(states)
 %     nexttile
-%     plot(inputs.trackDistance, initialSolution.(states{i})./weights)
+%     plot(inputs.trackDistance, replay.(states{i}))
 %     title(char(states{i}),'Interpreter','none')
 % end
+% 
+% %%
+% 
+% figure(2); clf; tiledlayout(3,1)
+% nexttile
+% plot(inputs.trackDistance,replay.vel)
+% 
+% nexttile
+% hold on
+% plot(inputs.trackDistance,replay.ax,'DisplayName','GGV')
+% plot(inputs.trackDistance,inputs.gLong,'DisplayName','Replay')
+% hold off; legend
+% 
+% 
+% nexttile
+% hold on
+% plot(inputs.trackDistance, replay.ay,'DisplayName','GGV')
+% plot(inputs.trackDistance,inputs.gLat,'DisplayName','Replay')
+% hold off; legend

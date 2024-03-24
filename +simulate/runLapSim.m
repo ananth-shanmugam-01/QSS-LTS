@@ -1,4 +1,4 @@
-function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDistance)
+function outputs = runLapSim(GGVresults, trackData)
 
     startTimer = tic;
     
@@ -39,9 +39,9 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
     
     %% Limit Speed Calculation
     
-    maxCornerVel = zeros(numel(trackCurvature),1);
-    for i = 1:numel(trackCurvature)
-        maxCornerVel(i) = min(29.038,cornerVelInterp(abs(trackCurvature(i))));
+    maxCornerVel = zeros(numel(trackData.trackCurvature),1);
+    for i = 1:numel(trackData.trackCurvature)
+        maxCornerVel(i) = min(29.038,cornerVelInterp(abs(trackData.trackCurvature(i))));
         maxCornerVel(i) = max(maxCornerVel(i),5);
     end
     
@@ -50,18 +50,18 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
     % Identify Apices
     [val, locs] = findpeaks(-maxCornerVel,"MinPeakDistance",6);
     
-    forwardVel = zeros(numel(trackCurvature),1);
+    forwardVel = zeros(numel(trackData.trackCurvature),1);
     forwardVel(locs(val == max(val))) = maxCornerVel(locs(val == max(val)));
     
-    for i = locs(val == max(val)):length(trackCurvature)-1
+    for i = locs(val == max(val)):length(trackData.trackCurvature)-1
     
-        curvature = trackCurvature(i);
+        curvature = trackData.trackCurvature(i);
         currentVel = forwardVel(i);
         currentAy = currentVel^2 * abs(curvature);
     
         Ax = max(0,maxAccelerationInterp(currentVel,currentAy));
         
-        forwardVel(i+1) = min(maxCornerVel(i+1),abs(sqrt((currentVel^2) + 2*Ax*sectorDistance)));
+        forwardVel(i+1) = min(maxCornerVel(i+1),abs(sqrt((currentVel^2) + 2*Ax*trackData.sectorDistance)));
     
     end
     
@@ -69,54 +69,54 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
     
     for i = 1: locs(val == max(val))
         
-        curvature = trackCurvature(i);
+        curvature = trackData.trackCurvature(i);
         currentVel = forwardVel(i);
         currentAy = currentVel^2 * abs(curvature);
     
         Ax = max(0,maxAccelerationInterp(currentVel,currentAy));
         
-        forwardVel(i+1) = min(maxCornerVel(i+1),abs(sqrt((currentVel^2) + 2*Ax*sectorDistance)));
+        forwardVel(i+1) = min(maxCornerVel(i+1),abs(sqrt((currentVel^2) + 2*Ax*trackData.sectorDistance)));
     
     end 
     
     %% Braking Speed Calculation
-    brakeVel = zeros(length(trackCurvature),1);
+    brakeVel = zeros(length(trackData.trackCurvature),1);
     
     brakeVel(locs(end)) = maxCornerVel(locs(end));
     
     for i = locs(end):-1:2
     
-        curvature = trackCurvature(i);
+        curvature = trackData.trackCurvature(i);
         currentVel = brakeVel(i);
         currentAy = currentVel^2 * abs(curvature);
     
         Ax = min(0,maxDecelerationInterp(currentVel,currentAy)); % Protection against surface extrapolation to negative velocities
         
-        brakeVel(i-1) = min(maxCornerVel(i-1),abs(sqrt((currentVel^2) - 2*Ax*sectorDistance)));
+        brakeVel(i-1) = min(maxCornerVel(i-1),abs(sqrt((currentVel^2) - 2*Ax*trackData.sectorDistance)));
     
     end
     
-    for i = locs(end):length(trackDistance)
+    for i = locs(end):length(trackData.trackDistance)
         brakeVel(i) = maxCornerVel(i); 
     end 
     
     %% Final Velocity Profile
     
     finalVel = min([maxCornerVel';forwardVel';brakeVel'])';
-    lapTime = sum(sectorDistance./finalVel);
+    lapTime = sum(trackData.sectorDistance./finalVel);
     
-    finalAx = zeros(length(trackDistance),1);
+    finalAx = zeros(length(trackData.trackDistance),1);
     
-    for i = 1:length(trackDistance)-1
-        finalAx(i) = (finalVel(i+1)^2 - finalVel(i)^2)/(2*sectorDistance);
+    for i = 1:length(trackData.trackDistance)-1
+        finalAx(i) = (finalVel(i+1)^2 - finalVel(i)^2)/(2*trackData.sectorDistance);
     end
-    finalAx(length(finalVel)) = (finalVel(2)^2 - finalVel(length(finalVel))^2)/(2*sectorDistance);
+    finalAx(length(finalVel)) = (finalVel(2)^2 - finalVel(length(finalVel))^2)/(2*trackData.sectorDistance);
     
-    finalAy = trackCurvature'.*finalVel.^2;
+    finalAy = trackData.trackCurvature'.*finalVel.^2;
     
     outputs = struct;
-    outputs.time = cumsum(sectorDistance./finalVel);
-    outputs.dist = trackDistance';
+    outputs.time = cumsum(trackData.sectorDistance./finalVel);
+    outputs.dist = trackData.trackDistance';
     outputs.vCar = finalVel;
     outputs.gLat = finalAy;
     outputs.gLong = finalAx;
@@ -130,8 +130,8 @@ function outputs = runLapSim(GGVresults, trackDistance, trackCurvature, sectorDi
     outputs.interpolants.maxAccelerationInterp = maxAccelerationInterp;
     outputs.interpolants.maxDecelerationInterp = maxDecelerationInterp;
 
-    outputs.track.sLap = trackDistance;
-    outputs.track.curvature = trackCurvature;
+    outputs.track.sLap = trackData.trackDistance;
+    outputs.track.curvature = trackData.trackCurvature;
 
 
     stopTimer = toc(startTimer);

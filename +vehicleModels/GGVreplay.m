@@ -174,18 +174,55 @@ replay.set_initial(wheel_rot_rrScaled,initialSolution.wheel_rot_rr(index)/wheel_
 sol = replay.solve();
     
 % extract results
-result.vel(index)          = Vx;
-result.ay(index)           = sol.value(ay_out);
-result.ax(index)           = sol.value(ax_out);
-result.throttle(index)     = sol.value(throttle_position);
-result.brake(index)        = sol.value(brake_pressure); 
-result.delta(index)        = sol.value(delta);
-result.beta(index)         = sol.value(beta);
-result.yaw_rate(index)     = sol.value(yaw_rate);
-result.wheel_rot_fl(index) = sol.value(wheel_rot_fl);
-result.wheel_rot_fr(index) = sol.value(wheel_rot_fr);
-result.wheel_rot_rl(index) = sol.value(wheel_rot_rl);
-result.wheel_rot_rr(index) = sol.value(wheel_rot_rr);
+result.vCar(index)          = Vx;
+result.gLat(index)          = sol.value(ay_out);
+result.gLong(index)         = sol.value(ax_out);
+result.rThrottle(index)     = sol.value(throttle_position);
+result.pBrake(index)        = sol.value(brake_pressure); 
+result.aSteer(index)        = sol.value(delta);
+result.aBeta(index)         = sol.value(beta);
+result.yawRate(index)       = sol.value(yaw_rate);
+result.nWheelRotFL(index)   = sol.value(wheel_rot_fl);
+result.nWheelRotFR(index)   = sol.value(wheel_rot_fr);
+result.nWheelRotRL(index)   = sol.value(wheel_rot_rl);
+result.nWheelRotRR(index)   = sol.value(wheel_rot_rr);
+
+% Auxilliary Outputs
+
+% Wheel Kinematics
+result.aSlipAngleFL(index) = sol.value(alpha_fl);
+result.aSlipAngleFR(index) = sol.value(alpha_fr);
+result.aSlipAngleRL(index) = sol.value(alpha_rl);
+result.aSlipAngleRR(index) = sol.value(alpha_rr);
+result.aSlipRatioFL(index) = sol.value(kappa_fl);
+result.aSlipRatioFR(index) = sol.value(kappa_fr);
+result.aSlipRatioRL(index) = sol.value(kappa_rl);
+result.aSlipRatioRR(index) = sol.value(kappa_rr);
+
+% Wheel Forces
+result.FzTyreFL(index) = sol.value(w_fl);
+result.FzTyreFR(index) = sol.value(w_fr);
+result.FzTyreRL(index) = sol.value(w_rl);
+result.FzTyreRR(index) = sol.value(w_rr);
+
+result.FyTyreFL(index) = sol.value(fy_fl);
+result.FyTyreFR(index) = sol.value(fy_fr);
+result.FyTyreRL(index) = sol.value(fy_rl);
+result.FyTyreRR(index) = sol.value(fy_rr);
+
+result.FxTyreFL(index) = sol.value(fx_fl);
+result.FxTyreFR(index) = sol.value(fx_fr);
+result.FxTyreRL(index) = sol.value(fx_rl);
+result.FxTyreRR(index) = sol.value(fx_rr);
+
+% Body Forces
+result.FBrakeFront(index) = sol.value(-Front_Brake_Force);
+result.FBrakeRear(index)  = sol.value(-Rear_Brake_Force);
+result.FTractive(index)   = sol.value(F_tractive);
+result.FDownforceTotal(index) = sol.value(DF_total);
+result.FDownforceFront(index) = sol.value(DF_front);
+result.FDownforceRear(index)  = sol.value(DF_rear);
+result.FDrag(index)           = sol.value(Fd);
 
 disp(['Replayed States at Node: ', num2str(index)])
 

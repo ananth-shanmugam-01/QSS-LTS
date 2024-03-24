@@ -1,9 +1,5 @@
 clear; clc;
 
-load("test.mat")
-
-index = 29;
-
 % initialize Problem
 import casadi.*
 
@@ -177,3 +173,52 @@ replay.set_initial(wheel_rot_rlScaled,initialSolution.wheel_rot_rl(index)/wheel_
 replay.set_initial(wheel_rot_rrScaled,initialSolution.wheel_rot_rr(index)/wheel_rot_weight);   
 
 sol = replay.solve();
+
+
+%% Useful to show which constraints are tripping the solve
+replay.debug.show_infeasibilities()
+
+% Convergence Constraints
+rad2deg(replay.debug.value(delta))
+rad2deg(replay.debug.value(deltaScaled)* 30*pi/180)
+
+rad2deg(replay.debug.value(betaScaled) *5*pi/180)
+
+replay.debug.value(throttle_position)
+replay.debug.value(brake_pressureScaled)
+
+replay.debug.value(wheel_rot_flScaled)
+replay.debug.value(wheel_rot_frScaled)
+replay.debug.value(wheel_rot_rlScaled)
+replay.debug.value(wheel_rot_rrScaled)
+
+% Convergence Constraints
+replay.debug.value(ay_res)
+replay.debug.value(ay_constraint_res)
+
+replay.debug.value(ax_res)
+replay.debug.value(ax_constraint_res)
+
+replay.debug.value(brakeBias_res)
+
+% States
+replay.debug.value(ax_target)
+replay.debug.value(ax_control)
+replay.debug.value(ax_out)
+
+replay.debug.value(ay_target)
+replay.debug.value(ay_control)
+replay.debug.value(ay_out)
+
+replay.debug.value(Mz_out)
+
+% Internal States
+rad2deg(replay.debug.value(alpha_fl))
+rad2deg(replay.debug.value(alpha_fr))
+rad2deg(replay.debug.value(alpha_rl))
+rad2deg(replay.debug.value(alpha_rr))
+
+replay.debug.value(kappa_fl)
+replay.debug.value(kappa_fr)
+replay.debug.value(kappa_rl)
+replay.debug.value(kappa_rr)
