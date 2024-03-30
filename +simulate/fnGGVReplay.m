@@ -175,6 +175,9 @@ for i = 1:numel(inputs.trackDistance)
 
 end
 
+% Time metric
+replay.time = cumsum(gradient(replay.sLap) ./ replay.vCar);
+
 end
 %%
 
