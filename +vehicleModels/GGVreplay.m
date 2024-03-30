@@ -1,21 +1,19 @@
-function result = getReplayStates(index, outputs, carData, result)
+function result = GGVreplay(index, initialSolution, inputs, result, carData)
 
-
-% initialize Problem
 import casadi.*
 
 replay = casadi.Opti();
 
 % Input Values
-Vx = outputs.vCar(index);
-ax_target = outputs.gLong(index);
-ay_target = outputs.gLat(index); 
-yaw_rate_target =  outputs.yawRate(index); 
+Vx          = inputs.Vel(index);
+ax_target   = inputs.gLong(index);
+ay_target   = inputs.gLat(index); 
+yaw_rate_target =  ay_target/Vx; 
 
 % decision variables & box constraints
 deltaScaled = replay.variable();                replay.subject_to(-1<=deltaScaled<=1);                  % steering angle (rad)
 betaScaled = replay.variable();                 replay.subject_to(-1<=betaScaled<=1);                   % sideslip angle (rad)
-yaw_rateScaled = replay.variable();             replay.subject_to(-1<=yaw_rateScaled<=1);               % yaw rate (rad/s)
+% yaw_rateScaled = replay.variable();             replay.subject_to(-1<=yaw_rateScaled<=1);               % yaw rate (rad/s)
 throttle_positionScaled = replay.variable();    replay.subject_to(0<=throttle_positionScaled<=1);     % throttle position (-)
 brake_pressureScaled = replay.variable();       replay.subject_to(0<=brake_pressureScaled<=1);            % brake pressure (bar)
 wheel_rot_flScaled = replay.variable();         replay.subject_to(0<=wheel_rot_flScaled<=1)             % FL wheel angular velocity (rad/s)
@@ -23,19 +21,23 @@ wheel_rot_frScaled = replay.variable();         replay.subject_to(0<=wheel_rot_f
 wheel_rot_rlScaled = replay.variable();         replay.subject_to(0<=wheel_rot_rlScaled<=1)             % RL wheel angular velocity (rad/s)
 wheel_rot_rrScaled = replay.variable();         replay.subject_to(0<=wheel_rot_rrScaled<=1)             % RR wheel angular velocity (rad/s)
 
-% Scaling for decision variables
-delta = deltaScaled * 30*pi/180;
-beta = betaScaled * 5*pi/180;
-yaw_rate = yaw_rateScaled * 120*pi/180;
-throttle_position = throttle_positionScaled;
-brake_pressure = brake_pressureScaled * 100;
-wheel_rot_fl = wheel_rot_flScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
-wheel_rot_fr = wheel_rot_frScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
-wheel_rot_rl = wheel_rot_rlScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
-wheel_rot_rr = wheel_rot_rrScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
+% State Weights
+deltaWeight         = 30*pi/180;
+betaWeight          = 5*pi/180;
+throttle_position_weight = 1;
+brake_pressure_weight = 100;
+wheel_rot_weight    = carData.Powertrain.vMax/carData.Chassis.radWheel;
 
-% Initial Value for decision variables
-initWheelVel = (Vx/carData.Chassis.radWheel)/(carData.Powertrain.vMax/carData.Chassis.radWheel);
+% Scaling for decision variables
+delta               = deltaScaled * deltaWeight; % convert bag to [rad]
+beta                = betaScaled * betaWeight; % convert bag to [rad]
+yaw_rate            = yaw_rate_target; % yaw_rateScaled * 120*pi/180;
+throttle_position   = throttle_positionScaled * throttle_position_weight;
+brake_pressure      = brake_pressureScaled * brake_pressure_weight;
+wheel_rot_fl        = wheel_rot_flScaled * wheel_rot_weight;
+wheel_rot_fr        = wheel_rot_frScaled * wheel_rot_weight;
+wheel_rot_rl        = wheel_rot_rlScaled * wheel_rot_weight;
+wheel_rot_rr        = wheel_rot_rrScaled * wheel_rot_weight;
 
 % Equations of Motion
 
@@ -52,8 +54,8 @@ motor_rot_vel = wheel_avg_vel * carData.Powertrain.rGear *60/(2*pi);
 F_tractive = throttle_position * carData.Powertrain.effPU * carData.Powertrain.nDrive * torqueInterp(motor_rot_vel) * carData.Powertrain.rGear/carData.Chassis.radWheel;
 
 % Braking Decelerative Force
-Front_Brake_Force = 2*(brake_pressure * 100 * carData.Brakes.rBrakeBias .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
-Rear_Brake_Force = 2*(brake_pressure * 100 *(1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonRear) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
+Front_Brake_Force = 2*(brake_pressure * carData.Brakes.rBrakeBias .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
+Rear_Brake_Force = 2*(brake_pressure * (1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonRear) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
 F_brake = -(Front_Brake_Force + Rear_Brake_Force);
 
 ay_control = Vx*yaw_rate;
@@ -101,13 +103,13 @@ Mz_out = (carData.Chassis.frontMomentArm*(fy_fl + fy_fr) + 0.5*carData.Chassis.t
           - carData.Chassis.rearMomentArm*(fy_rl + fy_rr) - 0.5*carData.Chassis.trackWidth*(fx_fr + fx_rr))/carData.Chassis.yawInertia;
 
 % Residuals
-ax_res = ax_control - ax_out;
+ax_res = ax_control - ax_target;
 ax_constraint_res = ax_out - ax_target;
 
-ay_res = ay_control - ay_out;
+ay_res = ay_control - ay_target;
 ay_constraint_res = ay_out - ay_target;
 
-yaw_rate_res = yaw_rate - yaw_rate_target;
+% yaw_rate_res = yaw_rate - yaw_rate_target;
 
 brakeBias_res = carData.Brakes.rBrakeBias - brakeBias_tyre;
 
@@ -118,114 +120,111 @@ replay.subject_to(-12*pi/180<=alpha_fr<=12*pi/180);
 replay.subject_to(-12*pi/180<=alpha_rl<=12*pi/180);
 replay.subject_to(-12*pi/180<=alpha_rr<=12*pi/180);
 
-replay.subject_to(-0.10<=kappa_fl<=0.1);
-replay.subject_to(-0.10<=kappa_fr<=0.1);
-replay.subject_to(-0.10<=kappa_rl<=0.1);
-replay.subject_to(-0.10<=kappa_rr<=0.1);
+replay.subject_to(-0.1<=kappa_fl<=0.1);
+replay.subject_to(-0.1<=kappa_fr<=0.1);
+replay.subject_to(-0.1<=kappa_rl<=0.1);
+replay.subject_to(-0.1<=kappa_rr<=0.1);
 
 % objective - minimise error in achieved and target states
-objective = ax_res^2 + ax_constraint_res^2 + ay_res^2 + ay_constraint_res^2 + yaw_rate_res^2 + brakeBias_res^2 + Mz_out^2;
+objective = ax_res^2 + ax_constraint_res^2 + ay_constraint_res^2;
 replay.minimize(objective);
 
-% Scaling for decision variables
-delta = deltaScaled * 30*pi/180;
-beta = betaScaled * 5*pi/180;
-yaw_rate = yaw_rateScaled * 120*pi/180;
-throttle_position = throttle_positionScaled;
-brake_pressure = brake_pressureScaled * 100;
-wheel_rot_fl = wheel_rot_flScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
-wheel_rot_fr = wheel_rot_frScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
-wheel_rot_rl = wheel_rot_rlScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
-wheel_rot_rr = wheel_rot_rrScaled * carData.Powertrain.vMax/carData.Chassis.radWheel;
-
-% initialization of decision variables
-replay.set_initial(deltaScaled,result.delta(index-1) / (30*pi/180));
-replay.set_initial(betaScaled,result.beta(index-1) / (5*pi/180));
-replay.set_initial(yaw_rateScaled,result.yaw_rate(index-1) / (120*pi/180));
-replay.set_initial(throttle_positionScaled,result.throttle(index-1));
-replay.set_initial(brake_pressureScaled,result.brake(index-1)/100);
-replay.set_initial(wheel_rot_flScaled,result.wheel_rot_fl(index-1) / (carData.Powertrain.vMax/carData.Chassis.radWheel));
-replay.set_initial(wheel_rot_frScaled,result.wheel_rot_fr(index-1) / (carData.Powertrain.vMax/carData.Chassis.radWheel));
-replay.set_initial(wheel_rot_rlScaled,result.wheel_rot_rl(index-1) / (carData.Powertrain.vMax/carData.Chassis.radWheel));
-replay.set_initial(wheel_rot_rrScaled,result.wheel_rot_rr(index-1) / (carData.Powertrain.vMax/carData.Chassis.radWheel));
-
 % Replay Constraints
-replay.subject_to(-0.05<=ay_res<=0.05);
-replay.subject_to(-0.05<=ay_constraint_res<=0.05);
-replay.subject_to(-0.05<=yaw_rate_res<=0.05);
-replay.subject_to(-0.05<=ax_res<=0.05);
-replay.subject_to(-0.05<=ax_constraint_res<=0.05);
-replay.subject_to(-0.025<=brakeBias_res<=0.025);
+% replay.subject_to(-0.05<=ay_res<=0.05);
+% replay.subject_to(-0.05<=ay_constraint_res<=0.05);
 replay.subject_to(-5 <= Mz_out <= 5);
 
-if ax_target >=0
-    replay.subject_to(brake_pressureScaled == 0);
-else
-    replay.subject_to(throttle_position == 0);
+
+if ax_target >=0.1 % During Acceleration
+
+    replay.subject_to(brake_pressure == 0);
+%     replay.subject_to(-0.05<=ax_res<=0.05);
+%     replay.subject_to(-0.05<=ax_constraint_res<=0.05);
+
+elseif ax_target <=-0.1 % During Deceleration
+  
+    replay.subject_to(throttle_position <= 0.001);
+    replay.subject_to(-0.05<=brakeBias_res<=0.05);
+%     replay.subject_to(-0.05<=ax_res<=0.05);
+%     replay.subject_to(-0.05<=ax_constraint_res<=0.05);
+
+else % Approximate steady-state cornering
+
+    replay.subject_to(throttle_position <= 0.05);
+    replay.subject_to(brake_pressureScaled <= 0.05);
+
 end
 
 % solve
 plugin_opts = struct('print_time',0);
-solver_opts = struct('print_level',0); % 'constr_viol_tol',0.1,'acceptable_obj_change_tol',0.01,
+solver_opts = struct('print_level',0); %'print_level',0, 'constr_viol_tol',0.01,'acceptable_obj_change_tol',0.01,
 replay.solver('ipopt',plugin_opts,solver_opts);
-
-try
-    sol = replay.solve();
     
-    % extract results
-    result.vel(index)          = Vx;
-    result.ay(index)           = sol.value(ay_out);
-    result.ax(index)           = sol.value(ax_out);
-    result.throttle(index)     = sol.value(throttle_position);
-    result.brake(index)        = sol.value(brake_pressure); 
-    result.delta(index)        = sol.value(delta);
-    result.beta(index)         = sol.value(beta);
-    result.yaw_rate(index)     = sol.value(yaw_rate);
-    result.wheel_rot_fl(index) = sol.value(wheel_rot_fl);
-    result.wheel_rot_fr(index) = sol.value(wheel_rot_fr);
-    result.wheel_rot_rl(index) = sol.value(wheel_rot_rl);
-    result.wheel_rot_rr(index) = sol.value(wheel_rot_rr);
+% Spline Interpolated Initial Conditions
+replay.set_initial(deltaScaled,deg2rad(initialSolution.delta(index))/deltaWeight); % deg2rad(initialSolution.delta(index))/deltaWeight
+replay.set_initial(betaScaled,deg2rad(initialSolution.beta(index))/betaWeight); % deg2rad(initialSolution.beta(index))/betaWeight
+% replay.set_initial(yaw_rateScaled,0);
+replay.set_initial(throttle_positionScaled,initialSolution.throttle(index)/throttle_position_weight);
+replay.set_initial(brake_pressureScaled,0);
+replay.set_initial(wheel_rot_flScaled,initialSolution.wheel_rot_fl(index)/wheel_rot_weight);
+replay.set_initial(wheel_rot_frScaled,initialSolution.wheel_rot_fr(index)/wheel_rot_weight);
+replay.set_initial(wheel_rot_rlScaled,initialSolution.wheel_rot_rl(index)/wheel_rot_weight);
+replay.set_initial(wheel_rot_rrScaled,initialSolution.wheel_rot_rr(index)/wheel_rot_weight);   
 
-    disp(['Replayed States at Node: ', num2str(index)])
-
-catch 
+sol = replay.solve();
     
-    disp(['replay failed at node: ', num2str(index)]);
+% extract results
+result.vCar(index)          = Vx;
+result.gLat(index)          = sol.value(ay_out);
+result.gLong(index)         = sol.value(ax_out);
+result.rThrottle(index)     = sol.value(throttle_position);
+result.pBrake(index)        = sol.value(brake_pressure); 
+result.aSteer(index)        = sol.value(delta);
+result.aBeta(index)         = sol.value(beta);
+result.yawRate(index)       = sol.value(yaw_rate);
+result.nWheelRotFL(index)   = sol.value(wheel_rot_fl);
+result.nWheelRotFR(index)   = sol.value(wheel_rot_fr);
+result.nWheelRotRL(index)   = sol.value(wheel_rot_rl);
+result.nWheelRotRR(index)   = sol.value(wheel_rot_rr);
 
-end
-% % Convergence Constraints
-% rad2deg(replay.debug.value(deltaScaled)* 30*pi/180)
-% rad2deg(replay.debug.value(betaScaled) *5*pi/180)
-% replay.debug.value(yaw_rateScaled)
-% replay.debug.value(brake_pressureScaled)
-% replay.debug.value(wheel_rot_flScaled)
-% replay.debug.value(wheel_rot_frScaled)
-% replay.debug.value(wheel_rot_rlScaled)
-% replay.debug.value(wheel_rot_rrScaled)
-% 
-% % Convergence Constraints
-% replay.debug.value(ay_res)
-% replay.debug.value(ax_res)
-% replay.debug.value(Mz_out)
-% replay.debug.value(ax_constraint_res)
-% replay.debug.value(brakeBias_res)
-% 
-% % States
-% replay.debug.value(ax_control)
-% replay.debug.value(ax_out)
-% replay.debug.value(ay_out)
-% replay.debug.value(ay_control)
-% replay.debug.value(brakeBias_res)
-% 
-% % Internal States
-% rad2deg(replay.debug.value(alpha_fl))
-% rad2deg(replay.debug.value(alpha_fr))
-% rad2deg(replay.debug.value(alpha_rl))
-% rad2deg(replay.debug.value(alpha_rr))
-% 
-% replay.debug.value(kappa_fl)
-% replay.debug.value(kappa_fr)
-% replay.debug.value(kappa_rl)
-% replay.debug.value(kappa_rr)
+% Auxilliary Outputs
+
+% Wheel Kinematics
+result.aSlipAngleFL(index) = sol.value(alpha_fl);
+result.aSlipAngleFR(index) = sol.value(alpha_fr);
+result.aSlipAngleRL(index) = sol.value(alpha_rl);
+result.aSlipAngleRR(index) = sol.value(alpha_rr);
+result.aSlipRatioFL(index) = sol.value(kappa_fl);
+result.aSlipRatioFR(index) = sol.value(kappa_fr);
+result.aSlipRatioRL(index) = sol.value(kappa_rl);
+result.aSlipRatioRR(index) = sol.value(kappa_rr);
+
+% Wheel Forces
+result.FzTyreFL(index) = sol.value(w_fl);
+result.FzTyreFR(index) = sol.value(w_fr);
+result.FzTyreRL(index) = sol.value(w_rl);
+result.FzTyreRR(index) = sol.value(w_rr);
+
+result.FyTyreFL(index) = sol.value(fy_fl);
+result.FyTyreFR(index) = sol.value(fy_fr);
+result.FyTyreRL(index) = sol.value(fy_rl);
+result.FyTyreRR(index) = sol.value(fy_rr);
+
+result.FxTyreFL(index) = sol.value(fx_fl);
+result.FxTyreFR(index) = sol.value(fx_fr);
+result.FxTyreRL(index) = sol.value(fx_rl);
+result.FxTyreRR(index) = sol.value(fx_rr);
+
+% Body Forces
+result.FBrakeFront(index) = sol.value(-Front_Brake_Force);
+result.FBrakeRear(index)  = sol.value(-Rear_Brake_Force);
+result.FTractive(index)   = sol.value(F_tractive);
+result.FDownforceTotal(index) = sol.value(DF_total);
+result.FDownforceFront(index) = sol.value(DF_front);
+result.FDownforceRear(index)  = sol.value(DF_rear);
+result.FDrag(index)           = sol.value(Fd);
+
+disp(['Replayed States at Node: ', num2str(index)])
+
 
 end
