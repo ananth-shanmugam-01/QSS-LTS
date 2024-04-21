@@ -1,4 +1,4 @@
-function replay = fnGGVReplay(reMeshLength, outputs, GGVresults, trackData, carData) 
+function replay = GGVReplay(reMeshLength, outputs, GGVresults, trackData, carData) 
 % Create Interpolants for each variable (states and controls) as a function
 % of forward velocity, lateral acceleration, longitudinal acceleration,
 % used only for initial solution to replay solver
@@ -169,9 +169,11 @@ initialSolution.wheel_rot_rr     = interp1(GGVinterp.dist,GGVinterp.wheel_rot_rr
 
 %% Loop across new mesh points
 
+targets = inputs;
+
 for i = 1:numel(inputs.trackDistance)
    
-    replay = vehicleModels.GGVreplay(i, initialSolution, inputs, replay, carData);
+    replay = ggv.replay(i, initialSolution, targets, replay, carData);
 
 end
 

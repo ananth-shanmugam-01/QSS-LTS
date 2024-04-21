@@ -6,7 +6,7 @@ addpath('C:\Users\admin\Documents\CasAdi')
 %% Load Track Parameterisation
 trackData = struct;
 trackData.sectorDistance = 1;
-[trackData.trackDistance, trackData.trackCurvature] = preProccess.loadTrackModel('BicesterMotion_2023', trackData.sectorDistance);
+[trackData.trackDistance, trackData.trackCurvature] = preProccess.loadTrackModel('FSUK_2016', trackData.sectorDistance);
 
 %% Load Base Car Parametrisation
 
@@ -25,7 +25,7 @@ disp(['Lap Time: ', num2str(outputs.time(end)), '(s)'])
 
 %% run replay to get vehicle states
 
-replay = simulate.fnGGVReplay(300, outputs, GGVresults, trackData, carData);
+replay = simulate.GGVReplay(300, outputs, GGVresults, trackData, carData);
 postProcess.plotReplay(replay)
 
 

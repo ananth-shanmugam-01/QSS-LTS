@@ -19,8 +19,7 @@ function outputs = carModel(inputs, carData)
     wheel_rot_fl    = inputs.wheel_rot_fl;
     wheel_rot_fr    = inputs.wheel_rot_fr;
     wheel_rot_rl    = inputs.wheel_rot_rl;
-    wheel_rot_rr    = inputs.wheel_rot_rr;
-    
+    wheel_rot_rr    = inputs.wheel_rot_rr;  
     
     g = 9.81;
     DF_total = 0.5*1.225*carData.Aero.CLA*Vx^2;
@@ -37,8 +36,8 @@ function outputs = carModel(inputs, carData)
     F_tractive = throttle_position * carData.Powertrain.effPU * carData.Powertrain.nDrive * torqueInterp(motor_rot_vel) * carData.Powertrain.rGear/carData.Chassis.radWheel;
     
     % Braking Decelerative Force
-    Front_Brake_Force = 2*(brake_pressure * 100 * carData.Brakes.rBrakeBias .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
-    Rear_Brake_Force = 2*(brake_pressure * 100 *(1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
+    Front_Brake_Force = 2*(brake_pressure*100 * carData.Brakes.rBrakeBias .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
+    Rear_Brake_Force = 2*(brake_pressure*100 *(1-carData.Brakes.rBrakeBias) .*10^5 .*carData.Brakes.areaPiston .*carData.Brakes.nPistonFront) * carData.Brakes.muBrakePad * carData.Brakes.radBrakeDisc / carData.Chassis.radWheel; %N
     F_brake = -(Front_Brake_Force + Rear_Brake_Force);
     
     ax_control = (F_tractive + F_brake - Fd) / carData.Chassis.mass;
@@ -112,5 +111,30 @@ function outputs = carModel(inputs, carData)
     outputs.kappa_fr    = kappa_fr;
     outputs.kappa_rl    = kappa_rl;
     outputs.kappa_rr    = kappa_rr;
+
+    %
+    outputs.w_fl = w_fl;
+    outputs.w_fr = w_fr;
+    outputs.w_rl = w_rl;
+    outputs.w_rr = w_rr;
+    
+    outputs.fy_fl = fy_fl;
+    outputs.fy_fr = fy_fr;
+    outputs.fy_rl = fy_rl;
+    outputs.fy_rr = fy_rr;
+    
+    outputs.fx_fl = fx_fl;
+    outputs.fx_fr = fx_fr;
+    outputs.fx_rl = fx_rl;
+    outputs.fx_rr = fx_rr;
+    
+    % Body Forces
+    outputs.FxBrake_front   = -Front_Brake_Force;
+    outputs.FxBrake_rear    = -Rear_Brake_Force;
+    outputs.FxTractive      = F_tractive;
+    outputs.FzAero_total    = DF_total;
+    outputs.FzAero_front    = DF_front;
+    outputs.FzAero_rear     = DF_rear;
+    outputs.FxAero_drag     = Fd;
 
 end
