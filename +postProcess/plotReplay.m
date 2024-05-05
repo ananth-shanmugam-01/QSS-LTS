@@ -1,7 +1,7 @@
 function plotReplay(replay)
 
     % function to create post-processed plots
-    
+    %% States
     figure(Name='States'); clf; t = tiledlayout(4,1);
     title(t, 'QSS LTS');
     subtitle(t, ['Lap Time: ', num2str(round(replay.time(end),2)), '(s)'])
@@ -28,6 +28,8 @@ function plotReplay(replay)
     title('yawRate')
     ylabel('[rad/s]')
     grid minor
+
+    %% Controls
     
     figure(Name='Controls'); clf; t = tiledlayout(3,1);
     title(t, 'QSS LTS');
@@ -119,4 +121,25 @@ function plotReplay(replay)
     ylabel('[-]')
     grid minor
 
+    %% Comparison with Inputs
+
+    figure(Name="GG Replay Comparison"); tiledlayout(2,1)
+
+    nexttile
+    hold on
+    plot(replay.sLap, replay.gLong,'DisplayName','Replay')
+    plot(replay.sLap, replay.inputStates.gLong,'DisplayName','GGV Inputs')
+    hold off; legend;
+    title('gLong')
+    ylabel('[m/s^2]')
+    grid minor
+    
+    nexttile
+    hold on
+    plot(replay.sLap, replay.gLat,'DisplayName','Replay')
+    plot(replay.sLap, replay.inputStates.gLat,'DisplayName','GGV Inputs')
+    hold off; legend;
+    title('gLat')
+    ylabel('[m/s^2]')
+    grid minor
 end

@@ -4,7 +4,7 @@
 % changes
 
 function GGV = optiProblem(velocity, carData, GGV, index, maneuver, ax_target)
-dbstop if error
+
     % initialize Problem
     import casadi.*
     
@@ -139,6 +139,12 @@ dbstop if error
     opti.subject_to(-0.1<=outputs.kappa_fr<=0.1);
     opti.subject_to(-0.1<=outputs.kappa_rl<=0.1);
     opti.subject_to(-0.1<=outputs.kappa_rr<=0.1);
+
+    % Non-negative wheel forces
+    opti.subject_to(0<=outputs.w_fl);
+    opti.subject_to(0<=outputs.w_fr);
+    opti.subject_to(0<=outputs.w_rl);
+    opti.subject_to(0<=outputs.w_rr);
    
     %% Vehicle State Residuals
     opti.subject_to(-0.05<=outputs.ay_res<=0.05);

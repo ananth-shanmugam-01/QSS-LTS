@@ -97,7 +97,7 @@ inputs.trackCurvature   = interp1(trackData.trackDistance,trackData.trackCurvatu
 inputs.Vel = interp1(outputs.dist,outputs.vCar,inputs.trackDistance,'makima')';
 inputs.gLat = interp1(outputs.dist,outputs.gLat,inputs.trackDistance,'makima')';
 inputs.gLong = interp1(outputs.dist,outputs.gLong,inputs.trackDistance,'makima')'; % Filtered g-long used here
-inputs.yawRate = inputs.Vel .* inputs.trackCurvature;
+inputs.yawRate = inputs.Vel .* inputs.trackCurvature';
 
 % Initial OUtput struct
 

@@ -73,10 +73,13 @@ replay.subject_to(-12*pi/180<=outputs.alpha_fr<=12*pi/180);
 replay.subject_to(-12*pi/180<=outputs.alpha_rl<=12*pi/180);
 replay.subject_to(-12*pi/180<=outputs.alpha_rr<=12*pi/180);
 
-replay.subject_to(-0.1<=outputs.kappa_fl<=0.1);
-replay.subject_to(-0.1<=outputs.kappa_fr<=0.1);
 replay.subject_to(-0.1<=outputs.kappa_rl<=0.1);
 replay.subject_to(-0.1<=outputs.kappa_rr<=0.1);
+
+replay.subject_to(0<=outputs.w_fl);
+replay.subject_to(0<=outputs.w_fr);
+replay.subject_to(0<=outputs.w_rl);
+replay.subject_to(0<=outputs.w_rr);
 
 %% objective - minimise error in achieved and target states
 
@@ -90,11 +93,20 @@ replay.minimize(objective);
 
 % Replay Constraints
 
-
 if ax_target <=-0.1 % During Deceleration
 
     replay.subject_to(-0.025<=brakeBias_res<=0.025);
+    replay.subject_to(-0.1<=outputs.kappa_fl<=0);
+    replay.subject_to(-0.1<=outputs.kappa_fr<=0);
 
+elseif ax_target >= 0.1
+    replay.subject_to(outputs.kappa_fl == 0);
+    replay.subject_to(outputs.kappa_fr == 0);
+
+else
+    replay.subject_to(-0.1<=outputs.kappa_fl<=0);
+    replay.subject_to(-0.1<=outputs.kappa_fr<=0);
+    
 end
 
 % solve

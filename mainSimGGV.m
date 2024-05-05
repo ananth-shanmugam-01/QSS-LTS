@@ -6,7 +6,10 @@ addpath('C:\Users\admin\Documents\CasAdi')
 %% Load Track Parameterisation
 trackData = struct;
 trackData.sectorDistance = 1;
-[trackData.trackDistance, trackData.trackCurvature] = preProccess.loadTrackModel('FSUK_2016', trackData.sectorDistance);
+
+load("FSUK_2023.mat");
+
+[trackData.trackDistance, trackData.trackCurvature] = preProccess.loadTrackModel(Track, trackData.sectorDistance);
 
 %% Load Base Car Parametrisation
 
@@ -27,7 +30,6 @@ disp(['Lap Time: ', num2str(outputs.time(end)), '(s)'])
 
 replay = simulate.GGVReplay(300, outputs, GGVresults, trackData, carData);
 postProcess.plotReplay(replay)
-
 
 %% Parameter Updates / Sweeps
 

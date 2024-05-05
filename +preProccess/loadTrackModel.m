@@ -1,9 +1,7 @@
-function [trackDist, curvatureSpline] = loadTrackModel(fileName,sector_dist)
+function [trackDist, curvatureSpline] = loadTrackModel(Track,sector_dist)
 
-    load(fileName);
-
-    trackDist = 0:sector_dist:TrackData.trackDistance(end);
-    curvatureSpline = csaps(TrackData.trackDistance, TrackData.trackCurvature,0.8,trackDist);
+    trackDist = 0:sector_dist:Track.sLap(end);
+    curvatureSpline = csaps(Track.sLap, Track.Curv,0.8,trackDist);
 
 
 end
